@@ -9,15 +9,15 @@ https://github.com/CaltechPrecisionTiming/FNALTestbeam_052017/tree/master/Analys
 Clean install and running
 ```
 git init
-git clone https://github.com/ledovsk/DRS-UVa.git
+git clone https://github.com/UVaHEP/MTD.git
 cd DRS-UVa
 make clean
 make
 ./BTL_Analysis --inputRootFile=../data/Run1816.root
-```
+
 
 Specify your own data file
-
+```
 Edit
 ```
 BTL_Analysis.cc 
