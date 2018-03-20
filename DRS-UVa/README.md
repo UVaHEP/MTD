@@ -13,10 +13,11 @@ git clone https://github.com/UVaHEP/MTD.git
 cd DRS-UVa
 make clean
 make
-./BTL_Analysis --inputRootFile=../data/Run1816.root
+./BTL_Analysis --inputRootFile=../data/Run1816.root --mergeChannels=<true/false>
 
 
-Specify your own data file
+--inputRootFile --> Specify your own data file
+--mergeChannels --> boolean to tell code whether to merge channels. Leaving this option off defaults to False
 ```
 Edit
 ```
