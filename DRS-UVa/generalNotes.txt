@@ -1,0 +1,22 @@
+interactive commands:
+
+single waveform: pulse->Draw("channel[10]:time[1]", "amp[10]>0.3 && event == 4984")
+all waveforms of channel: pulse->Draw("channel[10]:time[1]", "amp[10]>0.3")
+check if channel has waveform data: pulse->Draw("channel[10]", "amp[10]>0.3")
+
+notes
+=========
+- ~2ns risetime for waveforms
+- 1024 samples of each waveform per channel/group --> ~200 ps spacing
+- time branch in [ns], clock branch in [ms]
+- 36 channels in groups of 8, e.g. channel 0-7 in group 0, channels 8-15 in group 1, etc
+- time[][1024] stored by group
+- if max amp of first SiPM, e.g. channel[10]:time[1], at sample 500 and max amp of second SiPM at sample 503, 
+     delta t [ns] = time[1][500] - time[1][503] --> get timestamps via readout group
+- x/y coordinates in micrometers
+
+ideas for max amp finding:
+ a) simple: find largest bin
+ b) simple++: find largest bin within X (12?) samples of leading edge. if largest overall, keep event, if not largest overall, throw away. --> protects against weird waveforms
+ c) complicated: find max by looking for change in slope of line
+

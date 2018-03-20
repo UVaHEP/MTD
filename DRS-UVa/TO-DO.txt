@@ -1,0 +1,11 @@
+variation of anything with amplitude (plotted variables)
+
+time difference between left and right --> previously channel 15 and 16...
+
+make nanosecond binning --> picosecond binning (in auto Draw). nominal units are already picosecond
+
+figure out what all variables are
+
+linearTime30 is best fit?
+
+NOTE: variables in ROOT file are arrays (36 entries, one for each channel). Figure out channel mapping, get time difference etc
