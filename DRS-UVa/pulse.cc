@@ -8,6 +8,7 @@
 #include <TProfile.h>
 #include <TGraphErrors.h>
 #include <TGraph.h>
+#include <TTree.h>
 
 
 using namespace std;
@@ -51,27 +52,51 @@ void pulse::Loop()
 }
 
 
+TTree* pulse::GetOutputTree()
+{
+  return tOut;
+}
 
-
-void pulse::SimpleCheck(int channelID = 10)
+void pulse::SimpleCheck(int channelID = 10, std::string channelName = "ch10")
 {
   if (fChain == 0) return;
-  Long64_t nentries = fChain->GetEntries();
+  //Long64_t nentries = fChain->GetEntries();
+  Long64_t nentries = 1000;
   Long64_t nbytes = 0, nb = 0;
 
 
-  TH1D *hist001 = new TH1D("hist001", " reco amplitude " , 1000, 0., 10000.);
-  TH1D *hist002 = new TH1D("hist002", " reco time " , 1000, 0., 200.);
-  TH1D *hist003 = new TH1D("hist003", " maximum sample " , 1000, 0., 3000.);
-  TH1D *hist004 = new TH1D("hist004", " pedestal mean " , 1000, -100., 100.);
-  TH1D *hist005 = new TH1D("hist005", " pedestal rms " , 1000, 0., 100.);
-  TH1D *hist006 = new TH1D("hist006", " n Ratios " , 30, -0.5, 29.5);
-
-  TH1D *hist010 = new TH1D("hist010", " ntracks " , 10, -0.5, 9.5);
-  TH1D *hist011 = new TH1D("hist011", " log10(chi2) " , 1000, -7, 4);
-  TH2D *hist012 = new TH2D("hist012", " track Y vs X " , 1000, -10000, 40000, 1000, -10000, 40000);
-  TH2D *hist013 = new TH2D("hist013", " track Y vs X with LYSO hit" , 1000, -10000, 40000, 1000, -10000, 40000);
+  TH1D *hist001 = new TH1D( ("h_recoAmplitude_" + channelName).c_str(), " reco amplitude " , 1000, 0., 10000.);
+  TH1D *hist002 = new TH1D( ("h_recoTime_" + channelName).c_str() , " reco time " , 1000, 0., 200.);
+  TH1D *hist003 = new TH1D( ("h_maxSample_" + channelName).c_str() , " maximum sample " , 1000, 0., 3000.);
+  TH1D *hist004 = new TH1D( ("h_pedestalMean_" + channelName).c_str() , " pedestal mean " , 1000, -100., 100.);
+  TH1D *hist005 = new TH1D( ("h_pedestalRMS_" + channelName).c_str() , " pedestal rms " , 1000, 0., 100.);
+  TH1D *hist006 = new TH1D( ("h_nRatios_" + channelName).c_str() , " n Ratios " , 30, -0.5, 29.5);
   
+  TH1D *hist010 = new TH1D( ("h_nTracks_" + channelName).c_str() , " ntracks " , 10, -0.5, 9.5);
+  TH1D *hist011 = new TH1D( ("h_log10Chi2_" + channelName).c_str(), " log10(chi2) " , 1000, -7, 4);
+  TH2D *hist012 = new TH2D( ("h_trackYvsX_" + channelName).c_str() , " track Y vs X " , 1000, -10000, 40000, 1000, -10000, 40000);
+  TH2D *hist013 = new TH2D( ("h_trackYvsX_withLYSO_" + channelName).c_str() , " track Y vs X with LYSO hit" , 1000, -10000, 40000, 1000, -10000, 40000);
+  
+  tOut = new TTree( (channelName + "_Tree").c_str(), (channelName + "_Tree").c_str() );
+  double b_event     = 0;
+  double b_recoAmp   = 0;
+  double b_recoTime  = 0;
+  double b_maxSample = 0;
+  double b_pedMean   = 0;
+  double b_pedRMS    = 0;
+  double b_nRatios   = 0;
+  double b_nTracks   = 0;
+  double b_log10chi2 = 0;
+
+  tOut->Branch("event", &b_event);
+  tOut->Branch( ("recoAmp_" + channelName).c_str(), &b_recoAmp);
+  tOut->Branch( ("recoTime_" + channelName).c_str(), &b_recoTime);
+  tOut->Branch( ("maxSample_" + channelName).c_str(), &b_maxSample);
+  tOut->Branch( ("pedestalMean_" + channelName).c_str(), &b_pedMean);
+  tOut->Branch( ("pedestalRMS_" + channelName).c_str(), &b_pedRMS);
+  tOut->Branch( ("nRatios_" + channelName).c_str(), &b_nRatios);
+  tOut->Branch( ("nTracks_" + channelName).c_str(), &b_nTracks);
+  tOut->Branch( ("log10Chi2_" + channelName).c_str(), &b_log10chi2);
   
   // Setup DRS channel for reconstruction with Ratios. It is assumed
   // to be a SiPM attached to LYSO (not MCP)
@@ -115,11 +140,32 @@ void pulse::SimpleCheck(int channelID = 10)
 	hist013->Fill( xIntercept, yIntercept );
       }
     }
+
+    // fill tree branches
+    b_recoAmp = fabs(reco->aReco()) ;
+    b_recoTime  = reco->tReco();
+    b_maxSample = fabs(reco->amp(reco->imin()));
+    b_pedMean   = reco->pedMean();
+    b_pedRMS    = reco->pedRMS();
+    b_nRatios   = reco->nRatios();
+    b_nTracks   = ntracks;
+    b_event     = jentry;
+
+    if(ntracks>0 && chi2>1e-7){
+      b_log10chi2 = log10(chi2) ;
+      //hist012->Fill( xIntercept, yIntercept );
+      //if( fabs(reco->aReco())>10.0*reco->pedRMS() ){
+      //  hist013->Fill( xIntercept, yIntercept );
+      //}
+    }
+    else
+      b_log10chi2 = -99;
     
     
+    tOut->Fill();
   }
 
-  TFile *fout = new TFile("simpleCheck.root","recreate");
+  //TFile *fout = new TFile("simpleCheck.root","recreate");
   hist001->Write();
   hist002->Write();
   hist003->Write();
@@ -130,7 +176,8 @@ void pulse::SimpleCheck(int channelID = 10)
   hist011->Write();
   hist012->Write();
   hist013->Write();
-  fout->Close();
+  tOut->Write();
+  //fout->Close();
 }
 
 

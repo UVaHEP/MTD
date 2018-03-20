@@ -19,8 +19,9 @@ class pulse {
 public :
    TTree          *fChain;   //!pointer to the analyzed TTree or TChain
    Int_t           fCurrent; //!current Tree number in a TChain
-
-// Fixed size dimensions of array or collections stored in the TTree if any.
+  
+   TTree          *tOut; //output TTree
+   // Fixed size dimensions of array or collections stored in the TTree if any.
 
    // Declaration of leaf types
    Int_t           event;
@@ -100,9 +101,9 @@ public :
    virtual Bool_t   Notify();
    virtual void     Show(Long64_t entry = -1);
 
-   void SimpleCheck(int channelID);
-   void CalibrateOneChannel(int channelID);
-  
+  void SimpleCheck(int channelID, std::string channelName);
+  void CalibrateOneChannel(int channelID);
+  TTree* GetOutputTree();
 };
 
 #endif
