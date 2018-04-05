@@ -57,7 +57,8 @@ int main( int argc, char** argv)
 
 
   // Calibrate Ratios for one channel
-  //  myPulse->CalibrateOneChannel(10);
+  myPulse->CalibrateOneChannel(10);
+  myPulse->CalibrateOneChannel(11);
 
 
   // produced merged tree if requested

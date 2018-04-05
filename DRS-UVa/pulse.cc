@@ -60,8 +60,8 @@ TTree* pulse::GetOutputTree()
 void pulse::SimpleCheck(int channelID = 10, std::string channelName = "ch10")
 {
   if (fChain == 0) return;
-  Long64_t nentries = fChain->GetEntries();
-  //Long64_t nentries = 1000;
+  //Long64_t nentries = fChain->GetEntries();
+  Long64_t nentries = 2000;
   Long64_t nbytes = 0, nb = 0;
 
 
