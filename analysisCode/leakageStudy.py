@@ -83,9 +83,11 @@ def drawXquadrants(c0, h_x1, h_x2, h_x3, h_x4, barNum):
 ###########################################################
 
 
-f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/all5exposure/DataCMSVMETiming_5barExposure.root', 'READ')
+#f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/all5exposure/DataCMSVMETiming_5barExposure.root', 'READ') # all 5
+f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/lowBias/bottombars_66V.root', 'READ') # low bias (66 V) bars 1 and 2
 t0 = f0.pulse
 
+signalThreshold = 30
 
 h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
 h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
@@ -150,7 +152,7 @@ for event in t0:
     if (nTotal % 10000 == 0):
         print nTotal, "processed"
 
-    if (event.amp[1] > 100 and event.amp[3] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
+    if (event.amp[1] > signalThreshold and event.amp[3] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
         h_b1.Fill(event.x_dut[2], event.y_dut[2])
         h_mcp0_ch1.Fill( event.amp[0] )
         h_ch1_vs_ch2.Fill( event.amp[1], event.amp[2] )
@@ -164,7 +166,7 @@ for event in t0:
         if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
             h_ch1_ch2_ratio_xq4.Fill( event.amp[1] / event.amp[2] )
 
-    if (event.amp[3] > 100 and event.amp[5] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
+    if (event.amp[3] > signalThreshold and event.amp[5] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
         h_b2.Fill(event.x_dut[2], event.y_dut[2])
         h_mcp0_ch3.Fill( event.amp[0] )
         h_ch3_vs_ch4.Fill( event.amp[3], event.amp[4] )
@@ -178,7 +180,7 @@ for event in t0:
         if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
             h_ch3_ch4_ratio_xq4.Fill( event.amp[3] / event.amp[4] )
 
-    if (event.amp[5] > 100 and event.amp[10] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
+    if (event.amp[5] > signalThreshold and event.amp[10] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
         h_b3.Fill(event.x_dut[2], event.y_dut[2])
         h_mcp0_ch5.Fill( event.amp[0] )
         h_ch5_vs_ch6.Fill( event.amp[5], event.amp[6] )
@@ -192,7 +194,7 @@ for event in t0:
         if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
             h_ch5_ch6_ratio_xq4.Fill( event.amp[5] / event.amp[6] )
         
-    if (event.amp[10] > 100 and event.amp[5] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
+    if (event.amp[10] > signalThreshold and event.amp[5] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
         h_b4.Fill(event.x_dut[2], event.y_dut[2])
         h_mcp1_ch10.Fill( event.amp[9] )
         h_ch10_vs_ch11.Fill( event.amp[10], event.amp[11] )
@@ -206,7 +208,7 @@ for event in t0:
         if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
             h_ch10_ch11_ratio_xq4.Fill( event.amp[10] / event.amp[11] )
         
-    if (event.amp[12] > 100 and event.amp[10] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
+    if (event.amp[12] > signalThreshold and event.amp[10] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) ):
         h_b5.Fill(event.x_dut[2], event.y_dut[2])
         h_mcp1_ch12.Fill( event.amp[9] )
         h_ch12_vs_ch13.Fill( event.amp[12], event.amp[13] )
@@ -220,15 +222,15 @@ for event in t0:
         if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
             h_ch12_ch13_ratio_xq4.Fill( event.amp[12] / event.amp[13] )
         
-    if (event.amp[1] > 100 and event.amp[3] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -8.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
+    if (event.amp[1] > signalThreshold and event.amp[3] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -8.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
         h_b1_t.Fill(event.x_dut[2], event.y_dut[2])
-    if (event.amp[3] > 100 and event.amp[5] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -12.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
+    if (event.amp[3] > signalThreshold and event.amp[5] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -12.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
         h_b2_t.Fill(event.x_dut[2], event.y_dut[2])
-    if (event.amp[5] > 100 and event.amp[10] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -16.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
+    if (event.amp[5] > signalThreshold and event.amp[10] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -16.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
         h_b3_t.Fill(event.x_dut[2], event.y_dut[2])
-    if (event.amp[10] > 100 and event.amp[5] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -20.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
+    if (event.amp[10] > signalThreshold and event.amp[5] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -20.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
         h_b4_t.Fill(event.x_dut[2], event.y_dut[2])
-    if (event.amp[12] > 100 and event.amp[10] < 100 and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -24.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
+    if (event.amp[12] > signalThreshold and event.amp[10] < signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) and abs(event.y_dut[2] -24.5) < 2 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
         h_b5_t.Fill(event.x_dut[2], event.y_dut[2])
 
 draw2Dbar(c1, h_b1, 1)
