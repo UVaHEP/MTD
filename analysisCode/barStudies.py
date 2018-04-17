@@ -11,4 +11,4 @@ f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/all5exposure/DataCM
 #f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/lowBias/bottombars_66V.root', 'READ') # low bias (66 V) bars 1 and 2
 t0 = f0.pulse
 
-barClass(t0, "all5exposure")
+barClass(t0, 'all5exposure', '04-16-18_plots')
