@@ -13,7 +13,6 @@ class barClass:
         self.topDir = topDir
         self.signalThreshold = 0
         self.xBoundaries = []
-        self.xBoundaries_split = []
         self.yBoundaries = []
 
         self.setVarsByRunType(runType)
@@ -86,8 +85,7 @@ class barClass:
 
         if runType == "all5exposure":
             self.signalThreshold = 100
-            self.xBoundaries_split = [-2, 6, 15, 24, 33]
-            self.xBoundaries = [-2, 33]
+            self.xBoundaries = [-2, 6, 15, 24, 33]
             self.yBoundaries = [8.5, 12.5, 16.5, 20.5, 24.5]
 
     # =============================
@@ -129,7 +127,7 @@ class barClass:
             if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
                 h_lr_ratio_x4.Fill( event.amp[rightSiPMchannel] / event.amp[leftSiPMchannel] )
 
-            if (abs(event.y_dut[2] - self.yBoundaries[barNum - 1]) < 2.5 and event.x_dut[2]>=self.xBoundaries[0] and event.x_dut[2]<=self.xBoundaries[1]):
+            if (abs(event.y_dut[2] - self.yBoundaries[barNum - 1]) < 2.5 and event.x_dut[2]>=self.xBoundaries[0] and event.x_dut[2]<=self.xBoundaries[ len(self.xBoundaries)-1 ]):
                 h_b_test.Fill(event.x_dut[2], event.y_dut[2])
                     
         return h_b, h_mcp, h_lr_ratio, h_lr_ratio_x1,  h_lr_ratio_x2,  h_lr_ratio_x3,  h_lr_ratio_x4, h_b_test
@@ -149,101 +147,19 @@ class barClass:
             if (nTotal % 10000 == 0):
                 print nTotal, "processed"
 
-                
+            # bar 1
             self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t)
-
+            # bar 2
             self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_ratio_xq1, self.h_ch3_ch4_ratio_xq2, self.h_ch3_ch4_ratio_xq3, self.h_ch3_ch4_ratio_xq4, self.h_b2_t = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_ratio_xq1, self.h_ch3_ch4_ratio_xq2, self.h_ch3_ch4_ratio_xq3, self.h_ch3_ch4_ratio_xq4, self.h_b2_t)
+            # bar 3
+            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_ratio_xq1, self.h_ch5_ch6_ratio_xq2, self.h_ch5_ch6_ratio_xq3, self.h_ch5_ch6_ratio_xq4, self.h_b3_t = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_ratio_xq1, self.h_ch5_ch6_ratio_xq2, self.h_ch5_ch6_ratio_xq3, self.h_ch5_ch6_ratio_xq4, self.h_b3_t)
+            # bar 4
+            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_ratio_xq1, self.h_ch10_ch11_ratio_xq2, self.h_ch10_ch11_ratio_xq3, self.h_ch10_ch11_ratio_xq4, self.h_b4_t = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_ratio_xq1, self.h_ch10_ch11_ratio_xq2, self.h_ch10_ch11_ratio_xq3, self.h_ch10_ch11_ratio_xq4, self.h_b4_t)
+            # bar 5
+            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_ratio_xq1, self.h_ch12_ch13_ratio_xq2, self.h_ch12_ch13_ratio_xq3, self.h_ch12_ch13_ratio_xq4, self.h_b5_t = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_ratio_xq1, self.h_ch12_ch13_ratio_xq2, self.h_ch12_ch13_ratio_xq3, self.h_ch12_ch13_ratio_xq4, self.h_b5_t)
 
-            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t)
+       # end filling loop     
 
-            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t)
-
-            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_xq1, self.h_ch1_ch2_ratio_xq2, self.h_ch1_ch2_ratio_xq3, self.h_ch1_ch2_ratio_xq4, self.h_b1_t)
-
-            
-            """if (event.amp[1] > self.signalThreshold and event.amp[3] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004):
-                self.h_b1.Fill(event.x_dut[2], event.y_dut[2])
-                self.h_mcp0_ch1.Fill( event.amp[0] )
-                self.h_ch1_vs_ch2.Fill( event.amp[1], event.amp[2] )
-
-                if( event.x_dut[2]>=-2 and event.x_dut[2] < 6):
-                    self.h_ch1_ch2_ratio_xq1.Fill( event.amp[1] / event.amp[2] )
-                if( event.x_dut[2]>= 6 and event.x_dut[2] < 15):
-                    self.h_ch1_ch2_ratio_xq2.Fill( event.amp[1] / event.amp[2] )
-                if( event.x_dut[2]>=14 and event.x_dut[2] < 24):
-                    self.h_ch1_ch2_ratio_xq3.Fill( event.amp[1] / event.amp[2] )
-                if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
-                    self.h_ch1_ch2_ratio_xq4.Fill( event.amp[1] / event.amp[2] )"""
-
-            if (event.amp[3] > self.signalThreshold and event.amp[5] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 ):
-                self.h_b2.Fill(event.x_dut[2], event.y_dut[2])
-                self.h_mcp0_ch3.Fill( event.amp[0] )
-                self.h_ch3_vs_ch4.Fill( event.amp[3], event.amp[4] )
-        
-                if( event.x_dut[2]>=-2 and event.x_dut[2] < 6):
-                    self.h_ch3_ch4_ratio_xq1.Fill( event.amp[3] / event.amp[4] )
-                if( event.x_dut[2]>= 6 and event.x_dut[2] < 15):
-                    self.h_ch3_ch4_ratio_xq2.Fill( event.amp[3] / event.amp[4] )
-                if( event.x_dut[2]>=14 and event.x_dut[2] < 24):
-                    self.h_ch3_ch4_ratio_xq3.Fill( event.amp[3] / event.amp[4] )
-                if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
-                    self.h_ch3_ch4_ratio_xq4.Fill( event.amp[3] / event.amp[4] )
-
-            if (event.amp[5] > self.signalThreshold and event.amp[10] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 ):
-                self.h_b3.Fill(event.x_dut[2], event.y_dut[2])
-                self.h_mcp0_ch5.Fill( event.amp[0] )
-                self.h_ch5_vs_ch6.Fill( event.amp[5], event.amp[6] )
-                
-                if( event.x_dut[2]>=-2 and event.x_dut[2] < 6):
-                    self.h_ch5_ch6_ratio_xq1.Fill( event.amp[5] / event.amp[6] )
-                if( event.x_dut[2]>= 6 and event.x_dut[2] < 15):
-                    self.h_ch5_ch6_ratio_xq2.Fill( event.amp[5] / event.amp[6] )
-                if( event.x_dut[2]>=14 and event.x_dut[2] < 24):
-                    self.h_ch5_ch6_ratio_xq3.Fill( event.amp[5] / event.amp[6] )
-                if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
-                    self.h_ch5_ch6_ratio_xq4.Fill( event.amp[5] / event.amp[6] )
-        
-            if (event.amp[10] > self.signalThreshold and event.amp[5] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 ):
-                self.h_b4.Fill(event.x_dut[2], event.y_dut[2])
-                self.h_mcp1_ch10.Fill( event.amp[9] )
-                self.h_ch10_vs_ch11.Fill( event.amp[10], event.amp[11] )
-
-                if( event.x_dut[2]>=-2 and event.x_dut[2] < 6):
-                    self.h_ch10_ch11_ratio_xq1.Fill( event.amp[10] / event.amp[11] )
-                if( event.x_dut[2]>= 6 and event.x_dut[2] < 15):
-                    self.h_ch10_ch11_ratio_xq2.Fill( event.amp[10] / event.amp[11] )
-                if( event.x_dut[2]>=14 and event.x_dut[2] < 24):
-                    self.h_ch10_ch11_ratio_xq3.Fill( event.amp[10] / event.amp[11] )
-                if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
-                    self.h_ch10_ch11_ratio_xq4.Fill( event.amp[10] / event.amp[11] )
-        
-            if (event.amp[12] > self.signalThreshold and event.amp[10] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 ):
-                self.h_b5.Fill(event.x_dut[2], event.y_dut[2])
-                self.h_mcp1_ch12.Fill( event.amp[9] )
-                self.h_ch12_vs_ch13.Fill( event.amp[12], event.amp[13] )
-
-                if( event.x_dut[2]>=-2 and event.x_dut[2] < 6):
-                    self.h_ch12_ch13_ratio_xq1.Fill( event.amp[12] / event.amp[13] )
-                if( event.x_dut[2]>= 6 and event.x_dut[2] < 15):
-                    self.h_ch12_ch13_ratio_xq2.Fill( event.amp[12] / event.amp[13] )
-                if( event.x_dut[2]>=14 and event.x_dut[2] < 24):
-                    self.h_ch12_ch13_ratio_xq3.Fill( event.amp[12] / event.amp[13] )
-                if( event.x_dut[2]>=22 and event.x_dut[2] < 33):
-                    self.h_ch12_ch13_ratio_xq4.Fill( event.amp[12] / event.amp[13] )
-        
-            #if (event.amp[1] > self.signalThreshold and event.amp[3] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 and abs(event.y_dut[2] -8.5) < 2.5 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
-            #    self.h_b1_t.Fill(event.x_dut[2], event.y_dut[2])
-            if (event.amp[3] > self.signalThreshold and event.amp[5] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 and abs(event.y_dut[2] -12.5) < 2.5 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
-                self.h_b2_t.Fill(event.x_dut[2], event.y_dut[2])
-            if (event.amp[5] > self.signalThreshold and event.amp[10] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 and abs(event.y_dut[2] -16.5) < 2.5 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
-                self.h_b3_t.Fill(event.x_dut[2], event.y_dut[2])
-            if (event.amp[10] > self.signalThreshold and event.amp[5] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 and abs(event.y_dut[2] -20.5) < 2.5 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
-                self.h_b4_t.Fill(event.x_dut[2], event.y_dut[2])
-            if (event.amp[12] > self.signalThreshold and event.amp[10] < self.signalThreshold and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004 and abs(event.y_dut[2] -24.5) < 2.5 and event.x_dut[2]>=-2 and event.x_dut[2]<=33):
-                self.h_b5_t.Fill(event.x_dut[2], event.y_dut[2])
-
-
-        print "AHHHH, bar 1 has {0} entries".format(self.h_b1.GetEntries())
         self.draw2Dbar(self.c1, self.h_b1, 1)
         self.draw2Dbar(self.c1, self.h_b2, 2)
         self.draw2Dbar(self.c1, self.h_b3, 3)
