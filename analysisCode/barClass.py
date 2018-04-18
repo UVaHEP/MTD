@@ -8,7 +8,7 @@ import os,sys, argparse
 from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex
 
 class barClass:
-    def __init__(self, tree, runType, topDir):
+    def __init__(self, tree, runType, topDir, vetoOpt):
         self.tree = tree
         self.topDir = topDir
         self.signalThreshold = 0
@@ -16,7 +16,7 @@ class barClass:
         self.yBoundaries = []
         self.yIntegralOffset = 0
         self.setVarsByRunType(runType)
-
+        self.vetoOpt = vetoOpt
         self.h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
         self.h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
         self.h_b3 = TH2D("h_b3", "h_b3", 40, -5, 35, 35, 0, 35)
@@ -218,11 +218,12 @@ class barClass:
             leftSiPMchannel  = 2*barNum + 3
             mcpChannel = 1
             
-        doVetoEvent = self.returnVetoDecision(event, barNum, 'None')
+        #doVetoEvent = self.returnVetoDecision(event, barNum, 'None')
         #doVetoEvent = self.returnVetoDecision(event, barNum, 'singleAdj')
         #doVetoEvent = self.returnVetoDecision(event, barNum, 'doubleAdj')
         #doVetoEvent = self.returnVetoDecision(event, barNum, 'allAdj')
         #doVetoEvent = self.returnVetoDecision(event, barNum, 'all')
+        doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt)
 
         if (event.amp[rightSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004):
             h_b.Fill(event.x_dut[2], event.y_dut[2])
@@ -374,16 +375,15 @@ class barClass:
         
         if h0.GetEntries() > 0:
             print "In bar {0}: {1}\t Total: {2}\t % in Bar: {3}".format(barNum, window, h0.GetEntries(), window/h0.GetEntries())
+            ltx1 = TLatex()
+            ltx1.SetTextAlign(9)
+            ltx1.SetTextFont(62)
+            ltx1.SetTextSize(0.035)
+            ltx1.SetNDC()
+            ltx1.DrawLatex(0.15, 0.80, ("%Hits in Bar: {0:0.1f}%".format(100*window/h0.GetEntries())) )
+            ltx1.DrawLatex(0.15, 0.84, ("N_{{Hits}} in Bar: {0}".format(window)) )
         else:
             print "no entries"
-
-        ltx1 = TLatex()
-        ltx1.SetTextAlign(9)
-        ltx1.SetTextFont(62)
-        ltx1.SetTextSize(0.035)
-        ltx1.SetNDC()
-        ltx1.DrawLatex(0.15, 0.80, ("%Hits in Bar: {0:0.1f}%".format(100*window/h0.GetEntries())) )
-        ltx1.DrawLatex(0.15, 0.84, ("N_{{Hits}} in Bar: {0}".format(window)) )
 
         c0.Print( "{0}/bar{1}_python{2}.png".format(self.topDir, barNum, test) )
 
