@@ -5,18 +5,25 @@
 #Purpose: Class for handling testbeam bar data
 
 import os,sys, argparse
-from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex
+from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex, TProfile, TF1, TGraph
 
 class barClass:
-    def __init__(self, tree, runType, topDir, vetoOpt):
+    def __init__(self, tree, runType, topDir, vetoOpt, test=False):
         self.tree = tree
         self.topDir = topDir
         self.signalThreshold = 0
+        self.vetoThreshold = 0
         self.xBoundaries = []
         self.yBoundaries = []
         self.yIntegralOffset = 0
         self.setVarsByRunType(runType)
         self.vetoOpt = vetoOpt
+        self.isTest = test
+        self.fitPercentThreshold = 0.06
+        self.fitVoltageThreshold = 20 # in mV
+        self.fitVoltageForTiming = 25 # in mV
+        self.fitTimeWindow = 4
+
         self.h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
         self.h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
         self.h_b3 = TH2D("h_b3", "h_b3", 40, -5, 35, 35, 0, 35)
@@ -40,72 +47,42 @@ class barClass:
         self.h_ch10_vs_ch11 = TH2D("h_ch10_vs_ch11", "h_ch10_vs_ch11", 22, 0, 1100, 22, 0, 1100)
         self.h_ch12_vs_ch13 = TH2D("h_ch12_vs_ch13", "h_ch12_vs_ch13", 22, 0, 1100, 22, 0, 1100)
         
-        self.h_ch1_ch2_ratio_x1 = TH1D("h_ch1_ch2_ratio_x1", "h_ch1_ch2_ratio_x1", 50, 0.0, 2.0)
-        self.h_ch1_ch2_ratio_x2 = TH1D("h_ch1_ch2_ratio_x2", "h_ch1_ch2_ratio_x2", 50, 0.0, 2.0)
-        self.h_ch1_ch2_ratio_x3 = TH1D("h_ch1_ch2_ratio_x3", "h_ch1_ch2_ratio_x3", 50, 0.0, 2.0)
-        self.h_ch1_ch2_ratio_x4 = TH1D("h_ch1_ch2_ratio_x4", "h_ch1_ch2_ratio_x4", 50, 0.0, 2.0)
-        self.h_ch3_ch4_ratio_x1 = TH1D("h_ch3_ch4_ratio_x1", "h_ch3_ch4_ratio_x1", 50, 0.0, 2.0)
-        self.h_ch3_ch4_ratio_x2 = TH1D("h_ch3_ch4_ratio_x2", "h_ch3_ch4_ratio_x2", 50, 0.0, 2.0)
-        self.h_ch3_ch4_ratio_x3 = TH1D("h_ch3_ch4_ratio_x3", "h_ch3_ch4_ratio_x3", 50, 0.0, 2.0)
-        self.h_ch3_ch4_ratio_x4 = TH1D("h_ch3_ch4_ratio_x4", "h_ch3_ch4_ratio_x4", 50, 0.0, 2.0)
-        self.h_ch5_ch6_ratio_x1 = TH1D("h_ch5_ch6_ratio_x1", "h_ch5_ch6_ratio_x1", 50, 0.0, 2.0)
-        self.h_ch5_ch6_ratio_x2 = TH1D("h_ch5_ch6_ratio_x2", "h_ch5_ch6_ratio_x2", 50, 0.0, 2.0)
-        self.h_ch5_ch6_ratio_x3 = TH1D("h_ch5_ch6_ratio_x3", "h_ch5_ch6_ratio_x3", 50, 0.0, 2.0)
-        self.h_ch5_ch6_ratio_x4 = TH1D("h_ch5_ch6_ratio_x4", "h_ch5_ch6_ratio_x4", 50, 0.0, 2.0)
-        self.h_ch10_ch11_ratio_x1 = TH1D("h_ch10_ch11_ratio_x1", "h_ch10_ch11_ratio_x1", 50, 0.0, 2.0)
-        self.h_ch10_ch11_ratio_x2 = TH1D("h_ch10_ch11_ratio_x2", "h_ch10_ch11_ratio_x2", 50, 0.0, 2.0)
-        self.h_ch10_ch11_ratio_x3 = TH1D("h_ch10_ch11_ratio_x3", "h_ch10_ch11_ratio_x3", 50, 0.0, 2.0)
-        self.h_ch10_ch11_ratio_x4 = TH1D("h_ch10_ch11_ratio_x4", "h_ch10_ch11_ratio_x4", 50, 0.0, 2.0)
-        self.h_ch12_ch13_ratio_x1 = TH1D("h_ch12_ch13_ratio_x1", "h_ch12_ch13_ratio_x1", 50, 0.0, 2.0)
-        self.h_ch12_ch13_ratio_x2 = TH1D("h_ch12_ch13_ratio_x2", "h_ch12_ch13_ratio_x2", 50, 0.0, 2.0)
-        self.h_ch12_ch13_ratio_x3 = TH1D("h_ch12_ch13_ratio_x3", "h_ch12_ch13_ratio_x3", 50, 0.0, 2.0)
-        self.h_ch12_ch13_ratio_x4 = TH1D("h_ch12_ch13_ratio_x4", "h_ch12_ch13_ratio_x4", 50, 0.0, 2.0)
+        self.h_ch1_ch2_x_vs_ratio = TProfile("h_ch1_ch2_x_vs_ratio", "h_ch1_ch2_x_vs_ratio", 40, -5, 35, 0, 2)
+        self.h_ch3_ch4_x_vs_ratio = TProfile("h_ch3_ch4_x_vs_ratio", "h_ch3_ch4_x_vs_ratio", 40, -5, 35, 0, 2)
+        self.h_ch5_ch6_x_vs_ratio = TProfile("h_ch5_ch6_x_vs_ratio", "h_ch5_ch6_x_vs_ratio", 40, -5, 35, 0, 2)
+        self.h_ch10_ch11_x_vs_ratio = TProfile("h_ch10_ch11_x_vs_ratio", "h_ch10_ch11_x_vs_ratio", 40, -5, 35, 0, 2)
+        self.h_ch12_ch13_x_vs_ratio = TProfile("h_ch12_ch13_x_vs_ratio", "h_ch12_ch13_x_vs_ratio", 40, -5, 35, 0, 2)
 
-        self.h_ch1_x1 = TH1D("h_ch1_x1", "h_ch1_x1", 50, 0.0, 1000)
-        self.h_ch1_x2 = TH1D("h_ch1_x2", "h_ch1_x2", 50, 0.0, 1000)
-        self.h_ch1_x3 = TH1D("h_ch1_x3", "h_ch1_x3", 50, 0.0, 1000)
-        self.h_ch1_x4 = TH1D("h_ch1_x4", "h_ch1_x4", 50, 0.0, 1000)
-        self.h_ch2_x1 = TH1D("h_ch2_x1", "h_ch2_x1", 50, 0.0, 1000)
-        self.h_ch2_x2 = TH1D("h_ch2_x2", "h_ch2_x2", 50, 0.0, 1000)
-        self.h_ch2_x3 = TH1D("h_ch2_x3", "h_ch2_x3", 50, 0.0, 1000)
-        self.h_ch2_x4 = TH1D("h_ch2_x4", "h_ch2_x4", 50, 0.0, 1000)
-        self.h_ch3_x1 = TH1D("h_ch3_x1", "h_ch3_x1", 50, 0.0, 1000)
-        self.h_ch3_x2 = TH1D("h_ch3_x2", "h_ch3_x2", 50, 0.0, 1000)
-        self.h_ch3_x3 = TH1D("h_ch3_x3", "h_ch3_x3", 50, 0.0, 1000)
-        self.h_ch3_x4 = TH1D("h_ch3_x4", "h_ch3_x4", 50, 0.0, 1000)
-        self.h_ch4_x1 = TH1D("h_ch4_x1", "h_ch4_x1", 50, 0.0, 1000)
-        self.h_ch4_x2 = TH1D("h_ch4_x2", "h_ch4_x2", 50, 0.0, 1000)
-        self.h_ch4_x3 = TH1D("h_ch4_x3", "h_ch4_x3", 50, 0.0, 1000)
-        self.h_ch4_x4 = TH1D("h_ch4_x4", "h_ch4_x4", 50, 0.0, 1000)
-        self.h_ch5_x1 = TH1D("h_ch5_x1", "h_ch5_x1", 50, 0.0, 1000)
-        self.h_ch5_x2 = TH1D("h_ch5_x2", "h_ch5_x2", 50, 0.0, 1000)
-        self.h_ch5_x3 = TH1D("h_ch5_x3", "h_ch5_x3", 50, 0.0, 1000)
-        self.h_ch5_x4 = TH1D("h_ch5_x4", "h_ch5_x4", 50, 0.0, 1000)
-        self.h_ch6_x1 = TH1D("h_ch6_x1", "h_ch6_x1", 50, 0.0, 1000)
-        self.h_ch6_x2 = TH1D("h_ch6_x2", "h_ch6_x2", 50, 0.0, 1000)
-        self.h_ch6_x3 = TH1D("h_ch6_x3", "h_ch6_x3", 50, 0.0, 1000)
-        self.h_ch6_x4 = TH1D("h_ch6_x4", "h_ch6_x4", 50, 0.0, 1000)
-        self.h_ch10_x1 = TH1D("h_ch10_x1", "h_ch10_x1", 50, 0.0, 1000)
-        self.h_ch10_x2 = TH1D("h_ch10_x2", "h_ch10_x2", 50, 0.0, 1000)
-        self.h_ch10_x3 = TH1D("h_ch10_x3", "h_ch10_x3", 50, 0.0, 1000)
-        self.h_ch10_x4 = TH1D("h_ch10_x4", "h_ch10_x4", 50, 0.0, 1000)
-        self.h_ch11_x1 = TH1D("h_ch11_x1", "h_ch11_x1", 50, 0.0, 1000)
-        self.h_ch11_x2 = TH1D("h_ch11_x2", "h_ch11_x2", 50, 0.0, 1000)
-        self.h_ch11_x3 = TH1D("h_ch11_x3", "h_ch11_x3", 50, 0.0, 1000)
-        self.h_ch11_x4 = TH1D("h_ch11_x4", "h_ch11_x4", 50, 0.0, 1000)
-        self.h_ch12_x1 = TH1D("h_ch12_x1", "h_ch12_x1", 50, 0.0, 1000)
-        self.h_ch12_x2 = TH1D("h_ch12_x2", "h_ch12_x2", 50, 0.0, 1000)
-        self.h_ch12_x3 = TH1D("h_ch12_x3", "h_ch12_x3", 50, 0.0, 1000)
-        self.h_ch12_x4 = TH1D("h_ch12_x4", "h_ch12_x4", 50, 0.0, 1000)
-        self.h_ch13_x1 = TH1D("h_ch13_x1", "h_ch13_x1", 50, 0.0, 1000)
-        self.h_ch13_x2 = TH1D("h_ch13_x2", "h_ch13_x2", 50, 0.0, 1000)
-        self.h_ch13_x3 = TH1D("h_ch13_x3", "h_ch13_x3", 50, 0.0, 1000)
-        self.h_ch13_x4 = TH1D("h_ch13_x4", "h_ch13_x4", 50, 0.0, 1000)
+        self.h_ch1_x_vs_amp = TProfile("h_ch1_x_vs_amp", "h_ch1_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch2_x_vs_amp = TProfile("h_ch2_x_vs_amp", "h_ch2_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch3_x_vs_amp = TProfile("h_ch3_x_vs_amp", "h_ch3_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch4_x_vs_amp = TProfile("h_ch4_x_vs_amp", "h_ch4_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch5_x_vs_amp = TProfile("h_ch5_x_vs_amp", "h_ch5_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch6_x_vs_amp = TProfile("h_ch6_x_vs_amp", "h_ch6_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch10_x_vs_amp = TProfile("h_ch10_x_vs_amp", "h_ch10_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch11_x_vs_amp = TProfile("h_ch11_x_vs_amp", "h_ch11_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch12_x_vs_amp = TProfile("h_ch12_x_vs_amp", "h_ch12_x_vs_amp", 40, -5, 35, 0, 1000)
+        self.h_ch13_x_vs_amp = TProfile("h_ch13_x_vs_amp", "h_ch13_x_vs_amp", 40, -5, 35, 0, 1000)
+
+
+        self.h_ch1_x_vs_time = TProfile("h_ch1_x_vs_time", "h_ch1_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch2_x_vs_time = TProfile("h_ch2_x_vs_time", "h_ch2_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch3_x_vs_time = TProfile("h_ch3_x_vs_time", "h_ch3_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch4_x_vs_time = TProfile("h_ch4_x_vs_time", "h_ch4_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch5_x_vs_time = TProfile("h_ch5_x_vs_time", "h_ch5_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch6_x_vs_time = TProfile("h_ch6_x_vs_time", "h_ch6_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch10_x_vs_time = TProfile("h_ch10_x_vs_time", "h_ch10_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch11_x_vs_time = TProfile("h_ch11_x_vs_time", "h_ch11_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch12_x_vs_time = TProfile("h_ch12_x_vs_time", "h_ch12_x_vs_time", 40, -5, 35, 0, 1000)
+        self.h_ch13_x_vs_time = TProfile("h_ch13_x_vs_time", "h_ch13_x_vs_time", 40, -5, 35, 0, 1000)
+
+
 
         self.c1 = TCanvas("c1", "c1", 800, 800)
         self.c2 = TCanvas("c2", "c2", 800, 800)
         self.c3 = TCanvas("c3", "c3", 800, 800)
         self.c4 = TCanvas("c4", "c4", 800, 800)
+        #self.c5 = TCanvas("c5", "c5", 800, 800)
 
         gStyle.SetOptStat(0000)
 
@@ -126,16 +103,19 @@ class barClass:
 
         if runType == "all5exposure":
             self.signalThreshold = 100
+            self.vetoThreshold   = 100
             self.xBoundaries = [-2, 6, 15, 24, 33]
             self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
             self.yIntegralOffset = 2.5
         elif runType == "bottomBars_66V":
             self.signalThreshold = 30
+            self.vetoThreshold   = 30
             self.xBoundaries = [17, 19, 21, 23, 25]
             self.yBoundaries = [4.5, 9.5, 13.5, 16.5, 20.5] #5, 9, 13
             self.yIntegralOffset = 2.5
         elif runType == "topBars_66V":
             self.signalThreshold = 30
+            self.vetoThreshold   = 30
             self.xBoundaries = [17, 19, 21, 23, 25]
             self.yBoundaries = [25, 25, 2.5, 7.5, 11.5] # 6-9, 1-4 (bins) 10-13
             self.yIntegralOffset = 1.5
@@ -145,54 +125,54 @@ class barClass:
     def returnVetoDecision(self, event, barNum, vetoOption):
         """ function to return veto decision given option vetoOption = 'None'/'singleAdj'/'doubleAdj'/'allAdj'/'all'"""
 
-        if vetoOption == 'None':
+        if vetoOption == 'none':
             return False
 
         if vetoOption == 'singleAdj':
-            if barNum == 1 and event.amp[3] < self.signalThreshold:
+            if barNum == 1 and event.amp[3] < self.vetoThreshold:
                 return False
-            if barNum == 2 and event.amp[5] < self.signalThreshold:
+            if barNum == 2 and event.amp[5] < self.vetoThreshold:
                 return False
-            if barNum == 3 and event.amp[10] < self.signalThreshold:
+            if barNum == 3 and event.amp[10] < self.vetoThreshold:
                 return False
-            if barNum == 4 and event.amp[5] < self.signalThreshold:
+            if barNum == 4 and event.amp[5] < self.vetoThreshold:
                 return False
-            if barNum == 5 and event.amp[10] < self.signalThreshold:
+            if barNum == 5 and event.amp[10] < self.vetoThreshold:
                 return False
         if vetoOption == 'doubleAdj':
-            if barNum == 1 and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold:
+            if barNum == 1 and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold:
                 return False
-            if barNum == 2 and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold:
+            if barNum == 2 and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold:
                 return False
-            if barNum == 3 and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold:
+            if barNum == 3 and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold:
                 return False
-            if barNum == 4 and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold:
+            if barNum == 4 and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold:
                 return False
-            if barNum == 5 and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold:
+            if barNum == 5 and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold:
                 return False
 
         if vetoOption == 'allAdj':
-            if barNum == 1 and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold:
+            if barNum == 1 and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold:
                 return False
-            if barNum == 2 and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold and event.amp[1] < self.signalThreshold and event.amp[2] < self.signalThreshold:
+            if barNum == 2 and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold and event.amp[1] < self.vetoThreshold and event.amp[2] < self.vetoThreshold:
                 return False
-            if barNum == 3 and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold:
+            if barNum == 3 and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold:
                 return False
-            if barNum == 4 and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold and event.amp[12] < self.signalThreshold and event.amp[13] < self.signalThreshold:
+            if barNum == 4 and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold and event.amp[12] < self.vetoThreshold and event.amp[13] < self.vetoThreshold:
                 return False
-            if barNum == 5 and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold:
+            if barNum == 5 and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold:
                 return False
 
         if vetoOption == 'all':
-            if barNum == 1 and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold and event.amp[12] < self.signalThreshold and event.amp[13] < self.signalThreshold:
+            if barNum == 1 and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold and event.amp[12] < self.vetoThreshold and event.amp[13] < self.vetoThreshold:
                 return False
-            if barNum == 2 and event.amp[1] < self.signalThreshold and event.amp[2] < self.signalThreshold and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold and event.amp[12] < self.signalThreshold and event.amp[13] < self.signalThreshold:
+            if barNum == 2 and event.amp[1] < self.vetoThreshold and event.amp[2] < self.vetoThreshold and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold and event.amp[12] < self.vetoThreshold and event.amp[13] < self.vetoThreshold:
                 return False
-            if barNum == 3 and event.amp[1] < self.signalThreshold and event.amp[2] < self.signalThreshold and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold and event.amp[12] < self.signalThreshold and event.amp[13] < self.signalThreshold:
+            if barNum == 3 and event.amp[1] < self.vetoThreshold and event.amp[2] < self.vetoThreshold and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold and event.amp[12] < self.vetoThreshold and event.amp[13] < self.vetoThreshold:
                 return False
-            if barNum == 4 and event.amp[1] < self.signalThreshold and event.amp[2] < self.signalThreshold and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold and event.amp[12] < self.signalThreshold and event.amp[13] < self.signalThreshold:
+            if barNum == 4 and event.amp[1] < self.vetoThreshold and event.amp[2] < self.vetoThreshold and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold and event.amp[12] < self.vetoThreshold and event.amp[13] < self.vetoThreshold:
                 return False
-            if barNum == 5 and event.amp[1] < self.signalThreshold and event.amp[2] < self.signalThreshold and event.amp[3] < self.signalThreshold and event.amp[4] < self.signalThreshold and event.amp[5] < self.signalThreshold and event.amp[6] < self.signalThreshold and event.amp[10] < self.signalThreshold and event.amp[11] < self.signalThreshold:
+            if barNum == 5 and event.amp[1] < self.vetoThreshold and event.amp[2] < self.vetoThreshold and event.amp[3] < self.vetoThreshold and event.amp[4] < self.vetoThreshold and event.amp[5] < self.vetoThreshold and event.amp[6] < self.vetoThreshold and event.amp[10] < self.vetoThreshold and event.amp[11] < self.vetoThreshold:
                 return False
 
 
@@ -203,54 +183,146 @@ class barClass:
     
     # =============================
 
-    def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_lr_ratio, h_lr_ratio_x1, h_lr_ratio_x2, h_lr_ratio_x3, h_lr_ratio_x4, h_b_test, h_r_x1, h_r_x2, h_r_x3, h_r_x4, h_l_x1, h_l_x2, h_l_x3, h_l_x4):
+    def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time):
         """ function to fill bar-specific plots"""
         
         # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
-        leftSiPMchannel = rightSiPMchannel = mcpChannel = -1
+        leftSiPMchannel = rightSiPMchannel = mcpChannel = timeChannel = -1
         if barNum == 1 or barNum == 2 or barNum == 3:
             rightSiPMchannel = 2*barNum - 1
             leftSiPMchannel  = 2*barNum
-            mcpChannel = 0
+            mcpChannel  = 0
+            timeChannel = 0
                             
         elif barNum == 4 or barNum == 5:
             rightSiPMchannel = 2*barNum + 2
             leftSiPMchannel  = 2*barNum + 3
-            mcpChannel = 1
+            mcpChannel = 9
+            timeChannel = 1
             
-        #doVetoEvent = self.returnVetoDecision(event, barNum, 'None')
-        #doVetoEvent = self.returnVetoDecision(event, barNum, 'singleAdj')
-        #doVetoEvent = self.returnVetoDecision(event, barNum, 'doubleAdj')
-        #doVetoEvent = self.returnVetoDecision(event, barNum, 'allAdj')
-        #doVetoEvent = self.returnVetoDecision(event, barNum, 'all')
-        doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt)
+        # logic to see if event should be vetoed based on signals in other bars
+        doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt) # vetoOpt = none, singleAdj, doubleAdj, allAdj, all
 
         if (event.amp[rightSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004):
+            # leakage histograms and profiles
             h_b.Fill(event.x_dut[2], event.y_dut[2])
             h_mcp.Fill( event.amp[mcpChannel] )
-            h_lr_ratio.Fill( event.amp[rightSiPMchannel], event.amp[leftSiPMchannel] )
-            
-            if( event.x_dut[2]>=self.xBoundaries[0] and event.x_dut[2] < self.xBoundaries[1]):
-                h_lr_ratio_x1.Fill( event.amp[rightSiPMchannel] / event.amp[leftSiPMchannel] )
-                h_r_x1.Fill( event.amp[rightSiPMchannel] )
-                h_l_x1.Fill( event.amp[leftSiPMchannel] )
-            if( event.x_dut[2]>= self.xBoundaries[1] and event.x_dut[2] < self.xBoundaries[2]):
-                h_lr_ratio_x2.Fill( event.amp[rightSiPMchannel] / event.amp[leftSiPMchannel] )
-                h_r_x2.Fill( event.amp[rightSiPMchannel] )
-                h_l_x2.Fill( event.amp[leftSiPMchannel] )
-            if( event.x_dut[2]>=self.xBoundaries[2] and event.x_dut[2] < self.xBoundaries[3]):
-                h_lr_ratio_x3.Fill( event.amp[rightSiPMchannel] / event.amp[leftSiPMchannel] )
-                h_r_x3.Fill( event.amp[rightSiPMchannel] )
-                h_l_x3.Fill( event.amp[leftSiPMchannel] )
-            if( event.x_dut[2]>=self.xBoundaries[3] and event.x_dut[2] < self.xBoundaries[4]):
-                h_lr_ratio_x4.Fill( event.amp[rightSiPMchannel] / event.amp[leftSiPMchannel] )
-                h_r_x4.Fill( event.amp[rightSiPMchannel] )
-                h_l_x4.Fill( event.amp[leftSiPMchannel] )
+            h_r_vs_l.Fill( event.amp[rightSiPMchannel], event.amp[leftSiPMchannel] )
+            h_lr_x_vs_ratio.Fill(event.x_dut[2], event.amp[rightSiPMchannel] / event.amp[leftSiPMchannel] )
+            h_r_x_vs_amp.Fill(event.x_dut[2], event.amp[rightSiPMchannel] )
+            h_l_x_vs_amp.Fill(event.x_dut[2], event.amp[leftSiPMchannel] )
 
+            # test area for hit integral defintion
             if (abs(event.y_dut[2] - self.yBoundaries[barNum - 1]) <= self.yIntegralOffset and event.x_dut[2]>=self.xBoundaries[0] and event.x_dut[2]<=self.xBoundaries[ len(self.xBoundaries)-1 ]):
                 h_b_test.Fill(event.x_dut[2], event.y_dut[2])
                     
-        return h_b, h_mcp, h_lr_ratio, h_lr_ratio_x1,  h_lr_ratio_x2,  h_lr_ratio_x3,  h_lr_ratio_x4, h_b_test, h_r_x1, h_r_x2, h_r_x3, h_r_x4, h_l_x1, h_l_x2, h_l_x3, h_l_x4
+            # timing stuff
+            #print len(event.time), len(event.channel)
+            mipTime_R = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
+            mipTime_L = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
+
+            if mipTime_R != 0 and mipTime_L != 0:
+                h_r_x_vs_time.Fill(event.x_dut[2], mipTime_R)
+                h_l_x_vs_time.Fill(event.x_dut[2], mipTime_L)
+
+
+        return h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time
+
+    # =============================
+
+    def getTimingForChannel(self, time, channel, drs_time, drs_channel, i_evt):
+        """ function to calculate and return information about waveform for fitting"""
+        voltageFromFunction = 0
+        timeStep = 29.999 # timestamp to start at --> rough guess from looking at waveforms
+        
+        g = TGraph()
+        i = 0
+        l_time = l_channel = []
+        #print len(channel), channel, len(time), time
+        while i < 1024:
+            g.SetPoint(i, time[drs_time*1024 + i], -1*channel[drs_channel*1024 + i])
+            l_time.append(time[drs_time*1024 + i])
+            l_channel.append(channel[drs_channel*1024 + i])
+            i+=1
+        if i_evt%100 == 0:
+            c5 = TCanvas("c5", "c5", 800, 800)
+            g.Draw()
+            c5.Print( "{0}/waveform_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
+
+        fn1 = TF1('fn1', 'pol1') # first degree polynomial --> this is just a choice atm
+        #fn1 = TF1('fn1', 'gaus(0)') # first degree polynomial --> this is just a choice atm
+        startFit = self.getWaveformInfo_TOFPET(l_time, l_channel)
+        if startFit > 1: # protection against weird waveforms
+            fn1.SetRange(drs_time*1024 + startFit, drs_time*1024 + startFit + self.fitTimeWindow)
+            print startFit, g.GetN()
+            g.Fit(fn1, "QR")
+            """fnR = g.GetFunction("fn1")
+            if i_evt%100 == 0:
+                c5 = TCanvas("c5", "c5", 800, 800)
+                g.Draw()
+                c5.Print( "{0}/waveformPlusPol1Fit_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
+
+            # numerical solution for timing info
+            while voltageFromFunction < self.fitVoltageForTiming:
+                voltageFromFunction = fn1.Eval(timeStep)
+                timeStep += 0.001
+                if timeStep > 50:
+                    break
+               """   
+        
+        if timeStep < 30 or timeStep > 50: # something wonky --> not good
+            return 0
+        else: # good timing result!
+            print timeStep
+            return timeStep
+        
+    # =============================
+
+    def getWaveformInfo(self, time, channel):
+        """ function to calculate and return information about waveform for fitting"""
+
+        # there are probably better ways to do all of this in python...
+        maxADC = maxADC_stamp = threshold_stamp = -1
+        i = 0
+
+        # first find max
+        for reading in channel:
+            if reading > maxADC:
+                maxADC = reading
+                maxADC_stamp = i
+            i += 1
+
+        print maxADC, 'at', maxADC_stamp
+        
+        i=0
+        # second find first reading above percent threshold i.e. place to start fit
+        for reading in channel:
+            if reading/maxADC > self.fitPercentThreshold and threshold_stamp == -1:
+                threshold_stamp = i
+            i += 1
+
+        #print 'thresh met at', threshold_stamp, 'with', channel[threshold_stamp]
+
+        return threshold_stamp
+
+    # =============================
+
+    def getWaveformInfo_TOFPET(self, time, channel):
+        """ function to calculate and return information about waveform for fitting"""
+
+        # there are probably better ways to do all of this in python...
+        threshold_stamp = -1
+        i = 0
+
+        # find first reading above voltage threshold i.e. place to start fit
+        for reading in channel:
+            if abs(reading) > self.fitVoltageThreshold and threshold_stamp == -1:
+                threshold_stamp = i
+            i += 1
+
+        #print 'thresh met at', threshold_stamp, 'with', channel[threshold_stamp]
+
+        return threshold_stamp
 
     # =============================
     
@@ -261,22 +333,23 @@ class barClass:
         nTotal=0
 
         for event in self.tree:        
-            #if (nTotal > 10000):
-            #    break
+            if nTotal > 10000 and self.isTest:
+                break
+
             nTotal += 1
             if (nTotal % 10000 == 0):
                 print nTotal, "processed"
 
             # bar 1
-            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, self.h_b1_t, self.h_ch1_x1, self.h_ch1_x2, self.h_ch1_x3, self.h_ch1_x4, self.h_ch2_x1, self.h_ch2_x2, self.h_ch2_x3, self.h_ch2_x4 = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, self.h_b1_t, self.h_ch1_x1, self.h_ch1_x2, self.h_ch1_x3, self.h_ch1_x4, self.h_ch2_x1, self.h_ch2_x2, self.h_ch2_x3, self.h_ch2_x4)
+            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time)
             # bar 2
-            self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_ratio_x1, self.h_ch3_ch4_ratio_x2, self.h_ch3_ch4_ratio_x3, self.h_ch3_ch4_ratio_x4, self.h_b2_t, self.h_ch3_x1, self.h_ch3_x2, self.h_ch3_x3, self.h_ch3_x4, self.h_ch4_x1, self.h_ch4_x2, self.h_ch4_x3, self.h_ch4_x4 = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_ratio_x1, self.h_ch3_ch4_ratio_x2, self.h_ch3_ch4_ratio_x3, self.h_ch3_ch4_ratio_x4, self.h_b2_t, self.h_ch3_x1, self.h_ch3_x2, self.h_ch3_x3, self.h_ch3_x4, self.h_ch4_x1, self.h_ch4_x2, self.h_ch4_x3, self.h_ch4_x4)
+            self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time)
             # bar 3
-            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_ratio_x1, self.h_ch5_ch6_ratio_x2, self.h_ch5_ch6_ratio_x3, self.h_ch5_ch6_ratio_x4, self.h_b3_t, self.h_ch5_x1, self.h_ch5_x2, self.h_ch5_x3, self.h_ch5_x4, self.h_ch6_x1, self.h_ch6_x2, self.h_ch6_x3, self.h_ch6_x4 = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_ratio_x1, self.h_ch5_ch6_ratio_x2, self.h_ch5_ch6_ratio_x3, self.h_ch5_ch6_ratio_x4, self.h_b3_t, self.h_ch5_x1, self.h_ch5_x2, self.h_ch5_x3, self.h_ch5_x4, self.h_ch6_x1, self.h_ch6_x2, self.h_ch6_x3, self.h_ch6_x4)
+            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time)
             # bar 4
-            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_ratio_x1, self.h_ch10_ch11_ratio_x2, self.h_ch10_ch11_ratio_x3, self.h_ch10_ch11_ratio_x4, self.h_b4_t, self.h_ch10_x1, self.h_ch10_x2, self.h_ch10_x3, self.h_ch10_x4, self.h_ch11_x1, self.h_ch11_x2, self.h_ch11_x3, self.h_ch11_x4 = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_ratio_x1, self.h_ch10_ch11_ratio_x2, self.h_ch10_ch11_ratio_x3, self.h_ch10_ch11_ratio_x4, self.h_b4_t, self.h_ch10_x1, self.h_ch10_x2, self.h_ch10_x3, self.h_ch10_x4, self.h_ch11_x1, self.h_ch11_x2, self.h_ch11_x3, self.h_ch11_x4)
+            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time)
             # bar 5
-            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_ratio_x1, self.h_ch12_ch13_ratio_x2, self.h_ch12_ch13_ratio_x3, self.h_ch12_ch13_ratio_x4, self.h_b5_t, self.h_ch12_x1, self.h_ch12_x2, self.h_ch12_x3, self.h_ch12_x4, self.h_ch13_x1, self.h_ch13_x2, self.h_ch13_x3, self.h_ch13_x4 = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_ratio_x1, self.h_ch12_ch13_ratio_x2, self.h_ch12_ch13_ratio_x3, self.h_ch12_ch13_ratio_x4, self.h_b5_t, self.h_ch12_x1, self.h_ch12_x2, self.h_ch12_x3, self.h_ch12_x4, self.h_ch13_x1, self.h_ch13_x2, self.h_ch13_x3, self.h_ch13_x4)
+            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time)
 
        # end filling loop     
 
@@ -338,13 +411,41 @@ class barClass:
         self.drawLvsRinBar(self.c3, self.h_ch12_vs_ch13, 5)
         
         
-        self.drawXquadrants(self.c4, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, 1, 'Right/Left')
+        self.drawSingleProfile(self.c4, self.h_ch1_ch2_x_vs_ratio, 1, 'Right/Left')
+        self.drawSingleProfile(self.c4, self.h_ch3_ch4_x_vs_ratio, 2, 'Right/Left')
+        self.drawSingleProfile(self.c4, self.h_ch5_ch6_x_vs_ratio, 3, 'Right/Left')
+        self.drawSingleProfile(self.c4, self.h_ch10_ch11_x_vs_ratio, 4, 'Right/Left')
+        self.drawSingleProfile(self.c4, self.h_ch12_ch13_x_vs_ratio, 5, 'Right/Left')
+
+        self.drawSingleProfile(self.c4, self.h_ch1_x_vs_amp, 1, 'Bar 1 [Right SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch2_x_vs_amp, 1, 'Bar 1 [Left SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch3_x_vs_amp, 2, 'Bar 2 [Right SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch4_x_vs_amp, 2, 'Bar 2 [Left SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch5_x_vs_amp, 3, 'Bar 3 [Right SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch6_x_vs_amp, 3, 'Bar 3 [Left SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch10_x_vs_amp, 4, 'Bar 4 [Right SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch11_x_vs_amp, 4, 'Bar 4 [Left SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch12_x_vs_amp, 5, 'Bar 5 [Right SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch13_x_vs_amp, 5, 'Bar 5 [Left SiPM]')
+
+        self.drawSingleProfile(self.c4, self.h_ch1_x_vs_time, 1, 'Bar 1 [Right SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch2_x_vs_time, 1, 'Bar 1 [Left SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch3_x_vs_time, 2, 'Bar 2 [Right SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch4_x_vs_time, 2, 'Bar 2 [Left SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch5_x_vs_time, 3, 'Bar 3 [Right SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch6_x_vs_time, 3, 'Bar 3 [Left SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch10_x_vs_time, 4, 'Bar 4 [Right SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch11_x_vs_time, 4, 'Bar 4 [Left SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch12_x_vs_time, 5, 'Bar 5 [Right SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch13_x_vs_time, 5, 'Bar 5 [Left SiPM] Time')
+
+        """self.drawXquadrants(self.c4, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, 1, 'Right/Left')
         self.drawXquadrants(self.c4, self.h_ch3_ch4_ratio_x1, self.h_ch3_ch4_ratio_x2, self.h_ch3_ch4_ratio_x3, self.h_ch3_ch4_ratio_x4, 2, 'Right/Left')
         self.drawXquadrants(self.c4, self.h_ch5_ch6_ratio_x1, self.h_ch5_ch6_ratio_x2, self.h_ch5_ch6_ratio_x3, self.h_ch5_ch6_ratio_x4, 3, 'Right/Left')
         self.drawXquadrants(self.c4, self.h_ch10_ch11_ratio_x1, self.h_ch10_ch11_ratio_x2, self.h_ch10_ch11_ratio_x3, self.h_ch10_ch11_ratio_x4, 4, 'Right/Left')
-        self.drawXquadrants(self.c4, self.h_ch12_ch13_ratio_x1, self.h_ch12_ch13_ratio_x2, self.h_ch12_ch13_ratio_x3, self.h_ch12_ch13_ratio_x4, 5, 'Right/Left')
+        self.drawXquadrants(self.c4, self.h_ch12_ch13_ratio_x1, self.h_ch12_ch13_ratio_x2, self.h_ch12_ch13_ratio_x3, self.h_ch12_ch13_ratio_x4, 5, 'Right/Left')"""
 
-        self.drawXquadrants(self.c4, self.h_ch1_x1, self.h_ch1_x2, self.h_ch1_x3, self.h_ch1_x4, 1, 'Bar 1 [Right SiPM]')
+        """self.drawXquadrants(self.c4, self.h_ch1_x1, self.h_ch1_x2, self.h_ch1_x3, self.h_ch1_x4, 1, 'Bar 1 [Right SiPM]')
         self.drawXquadrants(self.c4, self.h_ch2_x1, self.h_ch2_x2, self.h_ch2_x3, self.h_ch2_x4, 1, 'Bar 1 [Left SiPM]')
         self.drawXquadrants(self.c4, self.h_ch3_x1, self.h_ch3_x2, self.h_ch3_x3, self.h_ch3_x4, 2, 'Bar 2 [Right SiPM]')
         self.drawXquadrants(self.c4, self.h_ch4_x1, self.h_ch4_x2, self.h_ch4_x3, self.h_ch4_x4, 2, 'Bar 2 [Left SiPM]')
@@ -353,7 +454,7 @@ class barClass:
         self.drawXquadrants(self.c4, self.h_ch10_x1, self.h_ch10_x2, self.h_ch10_x3, self.h_ch10_x4, 4, 'Bar 4 [Right SiPM]')
         self.drawXquadrants(self.c4, self.h_ch11_x1, self.h_ch11_x2, self.h_ch11_x3, self.h_ch11_x4, 4, 'Bar 4 [Left SiPM]')
         self.drawXquadrants(self.c4, self.h_ch12_x1, self.h_ch12_x2, self.h_ch12_x3, self.h_ch12_x4, 5, 'Bar 5 [Right SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch13_x1, self.h_ch13_x2, self.h_ch13_x3, self.h_ch13_x4, 5, 'Bar 5 [Left SiPM]')
+        self.drawXquadrants(self.c4, self.h_ch13_x1, self.h_ch13_x2, self.h_ch13_x3, self.h_ch13_x4, 5, 'Bar 5 [Left SiPM]')"""
         
     # =============================
 
@@ -449,6 +550,36 @@ class barClass:
         leg.AddEntry(h_x3, "{0}: Q3".format(varName), "l");
         leg.AddEntry(h_x4, "{0} Amplitude: Q4".format(varName), "l");
         leg.Draw("same");
+
+        if varName == 'Right/Left':
+            filename = '{0}/bar{1}_RL_ratio_x.png'.format(self.topDir, barNum)
+        else:
+            filename = '{0}/{1}_x.png'.format(self.topDir, varName.replace(' ', '_').replace('[','').replace(']',''))
+
+        c0.Print(filename)
+
+    # =============================
+
+    def drawSingleProfile(self, c0, h_p, barNum, varName):
+        """ function to recieve canvas (c0), TProfile (h_p), and bar number"""
+        c0.cd()
+        c0.SetLeftMargin(0.15);
+        c0.SetRightMargin(0.05);
+        c0.SetBottomMargin(0.10);
+        c0.SetTopMargin(0.10);
+        
+        if varName == 'Right/Left':
+            xtitle = "Right SiPM Amplitude / Left SiPM Amplitude"
+        elif 'Time' in varName:
+            xtitle = '{0} Time'.format(varName)
+        else:
+            xtitle = '{0} Amplitude'.format(varName)
+        
+        h_p.SetYTitle("Noramlized Entries / Bin")
+        h_p.SetXTitle(xtitle)
+        h_p.SetTitle("Bar {0}".format(barNum))
+
+        h_p.Draw()
 
         if varName == 'Right/Left':
             filename = '{0}/bar{1}_RL_ratio_x.png'.format(self.topDir, barNum)
