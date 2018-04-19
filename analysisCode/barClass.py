@@ -20,9 +20,10 @@ class barClass:
         self.vetoOpt = vetoOpt
         self.isTest = test
         self.fitPercentThreshold = 0.06
-        self.fitVoltageThreshold = 20 # in mV
-        self.fitVoltageForTiming = 25 # in mV
+        self.fitVoltageThreshold = 200 # in mV
+        self.fitVoltageForTiming = 250 # in mV
         self.fitTimeWindow = 4
+        self.fitFunction = "pol1"
 
         self.h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
         self.h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
@@ -64,25 +65,24 @@ class barClass:
         self.h_ch12_x_vs_amp = TProfile("h_ch12_x_vs_amp", "h_ch12_x_vs_amp", 40, -5, 35, 0, 1000)
         self.h_ch13_x_vs_amp = TProfile("h_ch13_x_vs_amp", "h_ch13_x_vs_amp", 40, -5, 35, 0, 1000)
 
+        self.h_ch1_x_vs_time = TProfile("h_ch1_x_vs_time", "h_ch1_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch2_x_vs_time = TProfile("h_ch2_x_vs_time", "h_ch2_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch3_x_vs_time = TProfile("h_ch3_x_vs_time", "h_ch3_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch4_x_vs_time = TProfile("h_ch4_x_vs_time", "h_ch4_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch5_x_vs_time = TProfile("h_ch5_x_vs_time", "h_ch5_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch6_x_vs_time = TProfile("h_ch6_x_vs_time", "h_ch6_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch10_x_vs_time = TProfile("h_ch10_x_vs_time", "h_ch10_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch11_x_vs_time = TProfile("h_ch11_x_vs_time", "h_ch11_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch12_x_vs_time = TProfile("h_ch12_x_vs_time", "h_ch12_x_vs_time", 40, -5, 35, 0, 100)
+        self.h_ch13_x_vs_time = TProfile("h_ch13_x_vs_time", "h_ch13_x_vs_time", 40, -5, 35, 0, 100)
 
-        self.h_ch1_x_vs_time = TProfile("h_ch1_x_vs_time", "h_ch1_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch2_x_vs_time = TProfile("h_ch2_x_vs_time", "h_ch2_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch3_x_vs_time = TProfile("h_ch3_x_vs_time", "h_ch3_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch4_x_vs_time = TProfile("h_ch4_x_vs_time", "h_ch4_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch5_x_vs_time = TProfile("h_ch5_x_vs_time", "h_ch5_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch6_x_vs_time = TProfile("h_ch6_x_vs_time", "h_ch6_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch10_x_vs_time = TProfile("h_ch10_x_vs_time", "h_ch10_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch11_x_vs_time = TProfile("h_ch11_x_vs_time", "h_ch11_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch12_x_vs_time = TProfile("h_ch12_x_vs_time", "h_ch12_x_vs_time", 40, -5, 35, 0, 1000)
-        self.h_ch13_x_vs_time = TProfile("h_ch13_x_vs_time", "h_ch13_x_vs_time", 40, -5, 35, 0, 1000)
-
-
+        self.h_allChannel_timing = TH1D("h_allChannel_timing", "h_allChannel_timing", 50, 0, 50)
+        self.h_allChannel_timingRes = TH1D("h_allChannel_timingRes", "h_allChannel_timingRes", 20, -2000, 2000)
 
         self.c1 = TCanvas("c1", "c1", 800, 800)
         self.c2 = TCanvas("c2", "c2", 800, 800)
         self.c3 = TCanvas("c3", "c3", 800, 800)
         self.c4 = TCanvas("c4", "c4", 800, 800)
-        #self.c5 = TCanvas("c5", "c5", 800, 800)
 
         gStyle.SetOptStat(0000)
 
@@ -183,7 +183,7 @@ class barClass:
     
     # =============================
 
-    def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time):
+    def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes):
         """ function to fill bar-specific plots"""
         
         # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
@@ -224,9 +224,11 @@ class barClass:
             if mipTime_R != 0 and mipTime_L != 0:
                 h_r_x_vs_time.Fill(event.x_dut[2], mipTime_R)
                 h_l_x_vs_time.Fill(event.x_dut[2], mipTime_L)
+                h_all_time.Fill(mipTime_L)
+                h_all_time.Fill(mipTime_R)
+                h_all_timeRes.Fill( 1000*(mipTime_L - mipTime_R) ) # multiple by 1000 to transfer from ns to ps
 
-
-        return h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time
+        return h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes
 
     # =============================
 
@@ -235,45 +237,50 @@ class barClass:
         voltageFromFunction = 0
         timeStep = 29.999 # timestamp to start at --> rough guess from looking at waveforms
         
-        g = TGraph()
         i = 0
-        l_time = l_channel = []
-        #print len(channel), channel, len(time), time
+        l_time = []
+        l_channel = []
+        # *** 1. Make arrays of trace information
         while i < 1024:
-            g.SetPoint(i, time[drs_time*1024 + i], -1*channel[drs_channel*1024 + i])
             l_time.append(time[drs_time*1024 + i])
             l_channel.append(channel[drs_channel*1024 + i])
-            i+=1
-        if i_evt%100 == 0:
-            c5 = TCanvas("c5", "c5", 800, 800)
-            g.Draw()
-            c5.Print( "{0}/waveform_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
+            i+=1            
 
-        fn1 = TF1('fn1', 'pol1') # first degree polynomial --> this is just a choice atm
+        # *** 2. Then store a TGraph --> why not in same step? because it doesn't work for unknown reasons
+        i=0
+        g = TGraph()       
+        while i < 1024:
+            g.SetPoint(i, l_time[i], l_channel[i])        
+            i=i+1
+
+        fn1 = TF1("fn1", self.fitFunction) # first degree polynomial --> this is just a choice atm
         #fn1 = TF1('fn1', 'gaus(0)') # first degree polynomial --> this is just a choice atm
         startFit = self.getWaveformInfo_TOFPET(l_time, l_channel)
-        if startFit > 1: # protection against weird waveforms
-            fn1.SetRange(drs_time*1024 + startFit, drs_time*1024 + startFit + self.fitTimeWindow)
-            print startFit, g.GetN()
-            g.Fit(fn1, "QR")
-            """fnR = g.GetFunction("fn1")
-            if i_evt%100 == 0:
+        if startFit > 1 and (startFit + self.fitTimeWindow) < 1024: # protection against weird waveforms
+            fn1.SetRange(l_time[startFit], l_time[startFit + self.fitTimeWindow])
+            #print 'N_points={0}, fit point {1}: ({2}, {3}), fit point {4}: ({5}, {6})'.format(g.GetN(), startFit, l_time[startFit], l_channel[startFit], startFit+ self.fitTimeWindow, l_time[startFit + self.fitTimeWindow], l_channel[startFit + self.fitTimeWindow])
+            g.Fit("fn1", "QR")
+
+            fnR = g.GetFunction("benFnc1")
+            if i_evt%5000 == 0:
                 c5 = TCanvas("c5", "c5", 800, 800)
                 g.Draw()
                 c5.Print( "{0}/waveformPlusPol1Fit_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
-
+            
             # numerical solution for timing info
-            while voltageFromFunction < self.fitVoltageForTiming:
+            while abs(voltageFromFunction) < abs(self.fitVoltageForTiming):
+                store = voltageFromFunction
                 voltageFromFunction = fn1.Eval(timeStep)
+                #print 'old: {0}, new: {1}'.format(store, voltageFromFunction)
                 timeStep += 0.001
                 if timeStep > 50:
                     break
-               """   
+               
         
-        if timeStep < 30 or timeStep > 50: # something wonky --> not good
+        if timeStep <= 30 or timeStep > 50: # something wonky --> not good
             return 0
         else: # good timing result!
-            print timeStep
+            #print timeStep
             return timeStep
         
     # =============================
@@ -318,7 +325,7 @@ class barClass:
         for reading in channel:
             if abs(reading) > self.fitVoltageThreshold and threshold_stamp == -1:
                 threshold_stamp = i
-            i += 1
+            i = i + 1
 
         #print 'thresh met at', threshold_stamp, 'with', channel[threshold_stamp]
 
@@ -341,15 +348,15 @@ class barClass:
                 print nTotal, "processed"
 
             # bar 1
-            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time)
+            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes)
             # bar 2
-            self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time)
+            self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes)
             # bar 3
-            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time)
+            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes)
             # bar 4
-            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time)
+            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes)
             # bar 5
-            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time)
+            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes)
 
        # end filling loop     
 
@@ -438,6 +445,16 @@ class barClass:
         self.drawSingleProfile(self.c4, self.h_ch11_x_vs_time, 4, 'Bar 4 [Left SiPM] Time')
         self.drawSingleProfile(self.c4, self.h_ch12_x_vs_time, 5, 'Bar 5 [Right SiPM] Time')
         self.drawSingleProfile(self.c4, self.h_ch13_x_vs_time, 5, 'Bar 5 [Left SiPM] Time')
+
+        self.c4.cd()
+        self.h_allChannel_timing.Draw()
+        self.c4.Print( "{0}/h_allChannel_timing.png".format(self.topDir) )
+        self.c4.cd()
+        self.h_allChannel_timingRes.Draw()
+        f_res = TF1("f_res", "gaus") # first degree polynomial --> this is just a choice atm
+        f_res.SetRange(-500, 500)
+        self.h_allChannel_timingRes.Fit("f_res", "")
+        self.c4.Print( "{0}/h_allChannel_timingRes.png".format(self.topDir) )
 
         """self.drawXquadrants(self.c4, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, 1, 'Right/Left')
         self.drawXquadrants(self.c4, self.h_ch3_ch4_ratio_x1, self.h_ch3_ch4_ratio_x2, self.h_ch3_ch4_ratio_x3, self.h_ch3_ch4_ratio_x4, 2, 'Right/Left')

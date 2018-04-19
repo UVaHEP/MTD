@@ -11,7 +11,7 @@ import sys, argparse
 
 # *** 0. setup parser for command line
 parser = argparse.ArgumentParser()
-parser.add_argument("--test", help="flag for running over only 10k events", action='store_true')
+parser.add_argument("--test", help="flag for running over only 10k events",  nargs='?', default=False)
 parser.add_argument("--vetoOpt", help="veto decision logic option: none/singleAdj/doubleAdj/allAdj/all")
 args = parser.parse_args()
 
@@ -25,12 +25,14 @@ else:
     else:
         print '-- Setting vetoOpt = {0}'.format(args.vetoOpt)
 
-if(args.test is not None):
+if(args.test is None):
+    args.test = True
     print "#### TEST MODE - running over 10k events only ####"
+else:
+    args.test = False
 
 
-
-topDir = '04-18-18_plots_{0}'.format(args.vetoOpt)
+topDir = '04-19-18_plots_{0}'.format(args.vetoOpt)
 
 
 # Ben Local
@@ -48,9 +50,10 @@ t1 = f1.pulse
 #t2 = f2.pulse
 
 
-if(args.test is not None):
-    barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, True)
+if(args.test):
+    barClass(t0, 'all5exposure', topDir, args.vetoOpt, True)
+    #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, True)
 else:
     barClass(t0, 'all5exposure', topDir, args.vetoOpt)
-    barClass(t1, 'bottomBars_66V', topDir, vetoOpt)
-    barClass(t2, 'topBars_66V', topDir, vetoOpt)
+    #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt)
+    #barClass(t2, 'topBars_66V', topDir, args.vetoOpt)
