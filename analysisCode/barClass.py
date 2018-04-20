@@ -451,9 +451,9 @@ class barClass:
         self.c4.Print( "{0}/h_allChannel_timing.png".format(self.topDir) )
         self.c4.cd()
         self.h_allChannel_timingRes.Draw()
-        f_res = TF1("f_res", "gaus") # first degree polynomial --> this is just a choice atm
+        f_res = TF1("f_res", "gaus") # gaussian
         f_res.SetRange(-500, 500)
-        self.h_allChannel_timingRes.Fit("f_res", "")
+        self.h_allChannel_timingRes.Fit("f_res", "R")
         self.c4.Print( "{0}/h_allChannel_timingRes.png".format(self.topDir) )
 
         """self.drawXquadrants(self.c4, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, 1, 'Right/Left')
