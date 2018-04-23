@@ -5,7 +5,7 @@
 #Purpose: Class for handling testbeam bar data
 
 import os,sys, argparse
-from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex, TProfile, TF1, TGraph
+from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex, TProfile, TF1, TGraph, TMath
 
 class barClass:
     def __init__(self, tree, runType, topDir, vetoOpt, test=False):
@@ -20,13 +20,16 @@ class barClass:
         self.vetoOpt = vetoOpt
         self.isTest = test
         self.fitPercentThreshold = 0.06
-        self.fitVoltageThreshold = 150 # in mV
-        self.fitVoltageForTiming = 200 # in mV
+        #self.fitVoltageThreshold = 150 # in mV
+        #self.fitVoltageForTiming = 200 # in mV
+        self.fitVoltageThreshold = 30 # in mV
+        self.fitVoltageForTiming = 50 # in mV #100 gave 150 ps
         self.fitMCPVoltageThreshold = 20 # in mV
         self.fitMCPVoltageForTiming = 40 # in mV
-        self.fitTimeWindow = 4
-        self.fitMCPTimeWindow = 2
-        self.fitFunction = "pol1"
+        self.fitSignalThreshold = 400 # in mV
+        self.fitTimeWindow = 7
+        self.fitMCPTimeWindow = 4
+        self.fitFunction = "landau"
 
         self.h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
         self.h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
@@ -82,7 +85,11 @@ class barClass:
         self.h_allChannel_timing = TH1D("h_allChannel_timing", "h_allChannel_timing", 60, 0, 60)
         self.h_allChannel_timingRes = TH1D("h_allChannel_timingRes", "h_allChannel_timingRes", 300, -1500, 1500)
         self.h_allChannel_timingLogic = TH1D("h_allChannel_timingLogic", "h_allChannel_timingLogic", 4, 0, 4)
-        self.h_allChannel_mcpRef_timingRes = TH1D("h_allChannel_mcpRef_timingRes", "h_allChannel_mcpRef_timingRes", 300, -1500, 1500)
+        #self.h_allChannel_mcpRef_timingRes = TH1D("h_allChannel_mcpRef_timingRes", "h_allChannel_mcpRef_timingRes", 300, -1500, 1500)
+        self.h_allChannel_mcpRef_timingRes = TH1D("h_allChannel_mcpRef_timingRes", "h_allChannel_mcpRef_timingRes", 350, -3500, 0)
+        self.h_allCh_x_vs_timingRes = TProfile("h_allCh_x_vs_timingRes", "h_allCh_x_vs_timingRes", 40, -5, 35, -1500, 1500)
+        #self.h_allCh_x_vs_mcpRef_timingRes = TProfile("h_allCh_x_vs_mcpRef_timingRes", "h_allCh_x_vs_mcpRef_timingRes", 40, -5, 35, -1500, 1500)
+        self.h_allCh_x_vs_mcpRef_timingRes = TProfile("h_allCh_x_vs_mcpRef_timingRes", "h_allCh_x_vs_mcpRef_timingRes", 40, -5, 35, -2500, 0)
 
         self.c1 = TCanvas("c1", "c1", 800, 800)
         self.c2 = TCanvas("c2", "c2", 800, 800)
@@ -107,7 +114,7 @@ class barClass:
         """ set various constants as function of runType"""
 
         if runType == "all5exposure":
-            self.signalThreshold = 100
+            self.signalThreshold = 800
             self.vetoThreshold   = 100
             self.xBoundaries = [-2, 6, 15, 24, 33]
             self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
@@ -188,7 +195,7 @@ class barClass:
     
     # =============================
 
-    def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes, h_all_timeLogic, h_mcpRef_timeRes):
+    def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes, h_all_timeLogic, h_mcpRef_timeRes, h_all_x_vs_timeRes, h_all_x_vs_mcpRef_timeRes):
         """ function to fill bar-specific plots"""
         
         # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
@@ -208,7 +215,7 @@ class barClass:
         # logic to see if event should be vetoed based on signals in other bars
         doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt) # vetoOpt = none, singleAdj, doubleAdj, allAdj, all
 
-        if (event.amp[rightSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004):
+        if (event.amp[rightSiPMchannel] > self.signalThreshold and event.amp[leftSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004):
             # leakage histograms and profiles
             h_b.Fill(event.x_dut[2], event.y_dut[2])
             h_mcp.Fill( event.amp[mcpChannel] )
@@ -225,19 +232,31 @@ class barClass:
             #print len(event.time), len(event.channel)
             mipTime_R = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
             mipTime_L = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
-            mipTime_MCP = self.getTimingForChannel(event.time, event.channel, timeChannel, mcpChannel, event.i_evt)
+            #mipTime_MCP = self.getTimingForChannel(event.time, event.channel, timeChannel, mcpChannel, event.i_evt)
+            mipTime_MCP = event.t_peak[mcpChannel]
 
             if mipTime_R != 0 and mipTime_L != 0:
                 h_r_x_vs_time.Fill(event.x_dut[2], mipTime_R)
                 h_l_x_vs_time.Fill(event.x_dut[2], mipTime_L)
+
+                h_all_timeLogic.Fill("Both",1)
+
+                deltaT = 1000*(mipTime_L - mipTime_R) # multiple by 1000 to transfer from ns to ps
+                h_all_x_vs_timeRes.Fill(event.x_dut[2], deltaT)
+                #if event.x_dut[2] > 5 and event.x_dut[2] < 25 and event.amp[rightSiPMchannel] > self.fitSignalThreshold: # keep it central
+                h_all_timeRes.Fill( deltaT ) 
                 h_all_time.Fill(mipTime_L)
                 h_all_time.Fill(mipTime_R)
-
-                h_all_timeRes.Fill( 1000*(mipTime_L - mipTime_R) ) # multiple by 1000 to transfer from ns to ps
-                h_all_timeLogic.Fill("Both",1)
-                if mipTime_MCP != 0:
+                
+                if mipTime_MCP != 0 and event.amp[mcpChannel] > 80 and event.amp[mcpChannel] < 160:
+                    deltaT_mcp = 1000*(((mipTime_R + mipTime_L)/2) - mipTime_MCP) # multiple by 1000 to transfer from ns to ps
+                    h_all_x_vs_mcpRef_timeRes.Fill(event.x_dut[2], deltaT_mcp)
+                    #if event.x_dut[2] > 5 and event.x_dut[2] < 25 and event.amp[rightSiPMchannel] > self.fitSignalThreshold: # keep it central
+                    h_mcpRef_timeRes.Fill( deltaT_mcp )
                     h_all_time.Fill(mipTime_MCP)
-                    h_mcpRef_timeRes.Fill( 1000*(((mipTime_R + mipTime_L)/2) - mipTime_MCP) )
+                if mipTime_R == mipTime_L and mipTime_MCP != 0 and event.amp[mcpChannel] > 80 and event.amp[mcpChannel] < 160:
+                    print 'mipTime_R = {0}, mipTime_L = {1}, event: {2}'.format(mipTime_R, mipTime_L, event.i_evt)
+
             if mipTime_R != 0 and mipTime_L == 0:
                 h_all_timeLogic.Fill("R only",1)
             if mipTime_R == 0 and mipTime_L != 0:
@@ -245,7 +264,7 @@ class barClass:
             if mipTime_R == 0 and mipTime_L == 0:
                 h_all_timeLogic.Fill("None",1)
 
-        return h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes, h_all_timeLogic, h_mcpRef_timeRes
+        return h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes, h_all_timeLogic, h_mcpRef_timeRes, h_all_x_vs_timeRes, h_all_x_vs_mcpRef_timeRes
 
     # =============================
 
@@ -253,14 +272,14 @@ class barClass:
         """ function to calculate and return information about waveform for fitting"""
         voltageFromFunction = 0
         timeStep = 0
-
+        evalFit = 0
         i = 0
         l_time = []
         l_channel = []
         # *** 1. Make arrays of trace information
         while i < 1024:
             l_time.append(time[drs_time*1024 + i])
-            l_channel.append(channel[drs_channel*1024 + i])
+            l_channel.append(-1*channel[drs_channel*1024 + i])
             i+=1            
 
         # *** 2. Then store a TGraph --> why not in same step? because it doesn't work for unknown reasons
@@ -292,23 +311,43 @@ class barClass:
                 c5 = TCanvas("c5", "c5", 800, 800)
                 g.Draw()
                 c5.Print( "{0}/waveformPlusPol1Fit_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
-                
+                print 'Chi2 / NDF = {0:0.1f} / {1:0.1f} = {2:0.1f}'.format(fnR.GetChisquare(), fnR.GetNDF(), fnR.GetChisquare()/fnR.GetNDF() ) 
             # numerical solution for timing info
-            timeStep = l_time[startFit] # timestamp to start at (use startFit cuz... duh)
             fitStop = self.fitVoltageForTiming
+            timeStep = l_time[startFit] # timestamp to start at (use startFit cuz... duh)
+
+            if fnR.Eval(timeStep) > self.fitVoltageThreshold: # sometimes we need to push back start when first point of fit is waay beyond fitThresholdVoltage due to steep risetime
+                #if i_evt == 1855:
+                #    print "REWIND, evt {0}, timeStep: ({1:0.3f}, {2:0.3f})".format(i_evt, timeStep, fnR.Eval(timeStep))
+                while fnR.Eval(timeStep) > self.fitVoltageThreshold: 
+                    timeStep = timeStep - 0.001 
+                    if timeStep < 0:
+                        break
+                #if i_evt == 1855:
+                #    print "REWIND, evt {0}, evalFit: ({1:0.3f}, {2:0.3f})".format(i_evt, timeStep, fnR.Eval(timeStep))
+            evalFit = timeStep
+
+
             if drs_channel == 0 or drs_channel == 9:
                 fitStop = self.fitMCPVoltageForTiming
                 
+
             while abs(voltageFromFunction) < abs(fitStop):
                 store = voltageFromFunction
                 voltageFromFunction = fnR.Eval(timeStep)
                 #if i_evt%500 == 0:
                 #    print 'old: {0}, new: {1}'.format(store, voltageFromFunction)
                 timeStep += 0.001
-                if timeStep > l_time[startFit] + 20:
+                #if timeStep > l_time[startFit] + 20: # scan over window of 20 ps
+                if timeStep > evalFit + 30: # scan over window of 20 ps
                     break
-               
-        if timeStep <= 30 or timeStep > 50: # something wonky --> not good
+
+            #if (timeStep - l_time[startFit]) < 0.002:
+            #    print "only one step, evt {0}, startFit: ({1:0.3f}, {2:0.3f}), fitted: ({3:0.3f}, {4:0.3f})".format(i_evt, l_time[startFit], l_channel[startFit], timeStep, fnR.Eval(timeStep))
+            if (timeStep - evalFit) < 0.002:
+                print "only one step, evt {0}, startFit: ({1:0.3f}, {2:0.3f}), fitted: ({3:0.3f}, {4:0.3f})".format(i_evt, evalFit, fnR.Eval(evalFit), timeStep, fnR.Eval(timeStep))
+
+        if timeStep <= evalFit or timeStep >= evalFit + 30: # something wonky --> not good
             return 0
         else: # good timing result!
             #print timeStep
@@ -398,15 +437,15 @@ class barClass:
                 print nTotal, "processed"
 
             # bar 1
-            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes)
+            self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes = self.fillChannelPlots(event, 1, self.h_b1, self.h_mcp0_ch1, self.h_ch1_vs_ch2, self.h_ch1_ch2_x_vs_ratio, self.h_b1_t, self.h_ch1_x_vs_amp, self.h_ch2_x_vs_amp, self.h_ch1_x_vs_time, self.h_ch2_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes)
             # bar 2
-            self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes)
+            self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes = self.fillChannelPlots(event, 2, self.h_b2, self.h_mcp0_ch3, self.h_ch3_vs_ch4, self.h_ch3_ch4_x_vs_ratio, self.h_b2_t, self.h_ch3_x_vs_amp, self.h_ch4_x_vs_amp, self.h_ch3_x_vs_time, self.h_ch4_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes)
             # bar 3
-            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes)
+            self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes = self.fillChannelPlots(event, 3, self.h_b3, self.h_mcp0_ch5, self.h_ch5_vs_ch6, self.h_ch5_ch6_x_vs_ratio, self.h_b3_t, self.h_ch5_x_vs_amp, self.h_ch6_x_vs_amp, self.h_ch5_x_vs_time, self.h_ch6_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes)
             # bar 4
-            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes)
+            self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes = self.fillChannelPlots(event, 4, self.h_b4, self.h_mcp1_ch10, self.h_ch10_vs_ch11, self.h_ch10_ch11_x_vs_ratio, self.h_b4_t, self.h_ch10_x_vs_amp, self.h_ch11_x_vs_amp, self.h_ch10_x_vs_time, self.h_ch11_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes)
             # bar 5
-            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes)
+            self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes = self.fillChannelPlots(event, 5, self.h_b5, self.h_mcp1_ch12, self.h_ch12_vs_ch13, self.h_ch12_ch13_x_vs_ratio, self.h_b5_t, self.h_ch12_x_vs_amp, self.h_ch13_x_vs_amp, self.h_ch12_x_vs_time, self.h_ch13_x_vs_time, self.h_allChannel_timing, self.h_allChannel_timingRes, self.h_allChannel_timingLogic, self.h_allChannel_mcpRef_timingRes, self.h_allCh_x_vs_timingRes, self.h_allCh_x_vs_mcpRef_timingRes)
 
        # end filling loop     
 
@@ -474,27 +513,27 @@ class barClass:
         self.drawSingleProfile(self.c4, self.h_ch10_ch11_x_vs_ratio, 4, 'Right/Left')
         self.drawSingleProfile(self.c4, self.h_ch12_ch13_x_vs_ratio, 5, 'Right/Left')
 
-        self.drawSingleProfile(self.c4, self.h_ch1_x_vs_amp, 1, 'Bar 1 [Right SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch2_x_vs_amp, 1, 'Bar 1 [Left SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch3_x_vs_amp, 2, 'Bar 2 [Right SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch4_x_vs_amp, 2, 'Bar 2 [Left SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch5_x_vs_amp, 3, 'Bar 3 [Right SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch6_x_vs_amp, 3, 'Bar 3 [Left SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch10_x_vs_amp, 4, 'Bar 4 [Right SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch11_x_vs_amp, 4, 'Bar 4 [Left SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch12_x_vs_amp, 5, 'Bar 5 [Right SiPM]')
-        self.drawSingleProfile(self.c4, self.h_ch13_x_vs_amp, 5, 'Bar 5 [Left SiPM]')
+        self.drawSingleProfile(self.c4, self.h_ch1_x_vs_amp, 1, 'Bar 1 Amplitude (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch2_x_vs_amp, 1, 'Bar 1 Amplitude (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch3_x_vs_amp, 2, 'Bar 2 Amplitude (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch4_x_vs_amp, 2, 'Bar 2 Amplitude (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch5_x_vs_amp, 3, 'Bar 3 Amplitude (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch6_x_vs_amp, 3, 'Bar 3 Amplitude (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch10_x_vs_amp, 4, 'Bar 4 Amplitude (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch11_x_vs_amp, 4, 'Bar 4 Amplitude (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch12_x_vs_amp, 5, 'Bar 5 Amplitude (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch13_x_vs_amp, 5, 'Bar 5 Amplitude (Left SiPM)')
 
-        self.drawSingleProfile(self.c4, self.h_ch1_x_vs_time, 1, 'Bar 1 [Right SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch2_x_vs_time, 1, 'Bar 1 [Left SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch3_x_vs_time, 2, 'Bar 2 [Right SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch4_x_vs_time, 2, 'Bar 2 [Left SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch5_x_vs_time, 3, 'Bar 3 [Right SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch6_x_vs_time, 3, 'Bar 3 [Left SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch10_x_vs_time, 4, 'Bar 4 [Right SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch11_x_vs_time, 4, 'Bar 4 [Left SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch12_x_vs_time, 5, 'Bar 5 [Right SiPM] Time')
-        self.drawSingleProfile(self.c4, self.h_ch13_x_vs_time, 5, 'Bar 5 [Left SiPM] Time')
+        self.drawSingleProfile(self.c4, self.h_ch1_x_vs_time, 1, 'Bar 1 Time (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch2_x_vs_time, 1, 'Bar 1 Time (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch3_x_vs_time, 2, 'Bar 2 Time (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch4_x_vs_time, 2, 'Bar 2 Time (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch5_x_vs_time, 3, 'Bar 3 Time (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch6_x_vs_time, 3, 'Bar 3 Time (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch10_x_vs_time, 4, 'Bar 4 Time (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch11_x_vs_time, 4, 'Bar 4 Time (Left SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch12_x_vs_time, 5, 'Bar 5 Time (Right SiPM)')
+        self.drawSingleProfile(self.c4, self.h_ch13_x_vs_time, 5, 'Bar 5 Time (Left SiPM)')
 
         self.c4.cd()
         self.h_allChannel_timing.Draw()
@@ -503,66 +542,16 @@ class barClass:
         self.drawResolutionPlot(self.c4, self.h_allChannel_timingRes, False)
         self.drawResolutionPlot(self.c4, self.h_allChannel_mcpRef_timingRes, True)
 
-        """self.c4.cd()
-        self.c4.SetLeftMargin(0.15);
-        self.c4.SetRightMargin(0.05);
-        self.c4.SetBottomMargin(0.10);
-        self.c4.SetTopMargin(0.10);
-        self.h_allChannel_timingRes.SetTitle("")
-        self.h_allChannel_timingRes.SetXTitle("t_{right SiPM} - t_{left SiPM} [ps]")
-        self.h_allChannel_timingRes.SetYTitle("Entries / 10 ps")
-        self.h_allChannel_timingRes.Draw()
-        f_res = TF1("f_res", "gaus") # gaussian
-        f_res.SetRange(-250, 250)
-        self.h_allChannel_timingRes.Fit("f_res", "R")
-        ltx1 = TLatex()
-        ltx1.SetTextAlign(9)
-        ltx1.SetTextFont(62)
-        ltx1.SetTextSize(0.035)
-        ltx1.SetNDC()
-        ltx1.DrawLatex(0.20, 0.85, "UNBELIEVABLY PRELIMINARY")
-        self.c4.Print( "{0}/h_allChannel_timingRes.png".format(self.topDir) )
+        self.drawSingleProfile(self.c4, self.h_allCh_x_vs_timingRes, 0, 't_{right SiPM} - t_{left SiPM}')
+        self.drawSingleProfile(self.c4, self.h_allCh_x_vs_mcpRef_timingRes, 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}')
 
-        self.c4.cd()
-        self.c4.SetLeftMargin(0.15);
-        self.c4.SetRightMargin(0.05);
-        self.c4.SetBottomMargin(0.10);
-        self.c4.SetTopMargin(0.10);
-        self.h_allChannel_mcpRef_timingRes.SetTitle("")
-        self.h_allChannel_mcpRef_timingRes.SetXTitle("(t_{right SiPM} - t_{left SiPM})/2 - t_{MCP} [ps]")
-        self.h_allChannel_mcpRef_timingRes.SetYTitle("Entries / 10 ps")
-        self.h_allChannel_mcpRef_timingRes.Draw()
-        f_res = TF1("f_res", "gaus") # gaussian
-        f_res.SetRange(-1000, -500)
-        self.h_allChannel_mcpRef_timingRes.Fit("f_res", "R")
-        ltx1 = TLatex()
-        ltx1.SetTextAlign(9)
-        ltx1.SetTextFont(62)
-        ltx1.SetTextSize(0.035)
-        ltx1.SetNDC()
-        ltx1.DrawLatex(0.20, 0.85, "UNBELIEVABLY PRELIMINARY")
-        self.c4.Print( "{0}/h_allChannel_mcpRef_timingRes.png".format(self.topDir) )
-        """
         self.c4.cd()
         self.h_allChannel_timingLogic.Draw("TEXT")
         self.c4.Print( "{0}/h_allChannel_timingLogic.png".format(self.topDir) )
 
-        """self.drawXquadrants(self.c4, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, 1, 'Right/Left')
-        self.drawXquadrants(self.c4, self.h_ch3_ch4_ratio_x1, self.h_ch3_ch4_ratio_x2, self.h_ch3_ch4_ratio_x3, self.h_ch3_ch4_ratio_x4, 2, 'Right/Left')
-        self.drawXquadrants(self.c4, self.h_ch5_ch6_ratio_x1, self.h_ch5_ch6_ratio_x2, self.h_ch5_ch6_ratio_x3, self.h_ch5_ch6_ratio_x4, 3, 'Right/Left')
-        self.drawXquadrants(self.c4, self.h_ch10_ch11_ratio_x1, self.h_ch10_ch11_ratio_x2, self.h_ch10_ch11_ratio_x3, self.h_ch10_ch11_ratio_x4, 4, 'Right/Left')
-        self.drawXquadrants(self.c4, self.h_ch12_ch13_ratio_x1, self.h_ch12_ch13_ratio_x2, self.h_ch12_ch13_ratio_x3, self.h_ch12_ch13_ratio_x4, 5, 'Right/Left')"""
-
-        """self.drawXquadrants(self.c4, self.h_ch1_x1, self.h_ch1_x2, self.h_ch1_x3, self.h_ch1_x4, 1, 'Bar 1 [Right SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch2_x1, self.h_ch2_x2, self.h_ch2_x3, self.h_ch2_x4, 1, 'Bar 1 [Left SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch3_x1, self.h_ch3_x2, self.h_ch3_x3, self.h_ch3_x4, 2, 'Bar 2 [Right SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch4_x1, self.h_ch4_x2, self.h_ch4_x3, self.h_ch4_x4, 2, 'Bar 2 [Left SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch5_x1, self.h_ch5_x2, self.h_ch5_x3, self.h_ch5_x4, 3, 'Bar 3 [Right SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch6_x1, self.h_ch6_x2, self.h_ch6_x3, self.h_ch6_x4, 3, 'Bar 3 [Left SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch10_x1, self.h_ch10_x2, self.h_ch10_x3, self.h_ch10_x4, 4, 'Bar 4 [Right SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch11_x1, self.h_ch11_x2, self.h_ch11_x3, self.h_ch11_x4, 4, 'Bar 4 [Left SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch12_x1, self.h_ch12_x2, self.h_ch12_x3, self.h_ch12_x4, 5, 'Bar 5 [Right SiPM]')
-        self.drawXquadrants(self.c4, self.h_ch13_x1, self.h_ch13_x2, self.h_ch13_x3, self.h_ch13_x4, 5, 'Bar 5 [Left SiPM]')"""
+        # === function graveyard. keep for reference"
+        #self.drawXquadrants(self.c4, self.h_ch1_ch2_ratio_x1, self.h_ch1_ch2_ratio_x2, self.h_ch1_ch2_ratio_x3, self.h_ch1_ch2_ratio_x4, 1, 'Right/Left')
+        #self.drawXquadrants(self.c4, self.h_ch1_x1, self.h_ch1_x2, self.h_ch1_x3, self.h_ch1_x4, 1, 'Bar 1 [Right SiPM]')
         
     # =============================
 
@@ -570,13 +559,17 @@ class barClass:
         """function to fit resolution plot with gaussian and print resutls"""
         xTitle = 't_{right SiPM} - t_{left SiPM} [ps]'
         plotName = 'h_allChannel_timingRes'
-        xMax = 250
-        xMin = -250
+        xMax = 50
+        xMin = -450
         if isMCPref:
             xTitle = '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP} [ps]'
             plotName = 'h_allChannel_mcpRef_timingRes'
-            xMax = -500
-            xMin = -1000
+            #xMax = -500
+            #xMin = -1000
+            #xMax = -1200
+            #xMin = -1700
+            xMax = -2100
+            xMin = -2500
 
         c0.cd()
         c0.SetLeftMargin(0.15);
@@ -589,7 +582,7 @@ class barClass:
         h0.Draw()
         f_res = TF1("f_res", "gaus") # gaussian
         f_res.SetRange(xMin, xMax)
-        h0.Fit("f_res", "R")
+        h0.Fit("f_res", "R") # should be "R" to impose range
         ltx1 = TLatex()
         ltx1.SetTextAlign(9)
         ltx1.SetTextFont(62)
@@ -718,22 +711,26 @@ class barClass:
         c0.SetTopMargin(0.10);
         
         if varName == 'Right/Left':
-            xtitle = "Right SiPM Amplitude / Left SiPM Amplitude"
-        elif 'Time' in varName:
-            xtitle = '{0} Time'.format(varName)
+            ytitle = "Right SiPM Amplitude / Left SiPM Amplitude"
+        elif 'Amplitude' in varName:
+            ytitle = "{0} [mV]".format(varName)
         else:
-            xtitle = '{0} Amplitude'.format(varName)
-        
-        h_p.SetYTitle("Noramlized Entries / Bin")
-        h_p.SetXTitle(xtitle)
+            ytitle = '{0} [ps]'.format(varName)
+
+        h_p.SetXTitle("X [mm]")
+        h_p.SetYTitle(ytitle)
         h_p.SetTitle("Bar {0}".format(barNum))
 
         h_p.Draw()
 
         if varName == 'Right/Left':
             filename = '{0}/bar{1}_RL_ratio_x.png'.format(self.topDir, barNum)
+        elif "t_{" in varName:
+            filename = '{0}/allChannel_timing_vs_x.png'.format(self.topDir)
+            if 'MCP' in varName:
+                filename = '{0}/allChannel_mcpRef_timing_vs_x.png'.format(self.topDir)
         else:
-            filename = '{0}/{1}_x.png'.format(self.topDir, varName.replace(' ', '_').replace('[','').replace(']',''))
+            filename = '{0}/{1}_x.png'.format(self.topDir, varName.replace(' ', '_').replace('(','').replace(')',''))
 
         c0.Print(filename)
 
