@@ -32,6 +32,7 @@ class barClass:
         self.fitMCPTimeWindow = 4
         self.fitFunction = "landau"
         self.histArray = TObjArray() 
+        self.xSlice = 5 # in mm
 
         # *** 1. Define all histograms
         h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
@@ -86,8 +87,8 @@ class barClass:
         h_ch13_x_vs_time = TProfile("h_ch13_x_vs_time", "h_ch13_x_vs_time", 40, -5, 35, 0, 100)
 
         h_allChannel_timing = TH1D("h_allChannel_timing", "h_allChannel_timing", 60, 0, 60)
-        h_allChannel_timingRes = TH1D("h_allChannel_timingRes", "h_allChannel_timingRes", 300, -1500, 1500)
         h_allChannel_timingLogic = TH1D("h_allChannel_timingLogic", "h_allChannel_timingLogic", 4, 0, 4)
+        h_allChannel_timingRes = TH1D("h_allChannel_timingRes", "h_allChannel_timingRes", 300, -1500, 1500)
         #h_allChannel_mcpRef_timingRes = TH1D("h_allChannel_mcpRef_timingRes", "h_allChannel_mcpRef_timingRes", 300, -1500, 1500)
         h_allChannel_mcpRef_timingRes = TH1D("h_allChannel_mcpRef_timingRes", "h_allChannel_mcpRef_timingRes", 350, -3500, 0)
         h_allChannel_x_vs_timingRes = TProfile("h_allChannel_x_vs_timingRes", "h_allChannel_x_vs_timingRes", 40, -5, 35, -1500, 1500)
@@ -98,7 +99,7 @@ class barClass:
         h_allChannel_mcpRef_timingRes_ampWalkCorrected = TH1D("h_allChannel_mcpRef_timingRes_ampWalkCorrected", "h_allChannel_mcpRef_timingRes_ampWalkCorrected", 350, -3500, 0)
         h_allChannel_mcpRef_ampWalkCorrection = TH1D("h_allChannel_mcpRef_ampWalkCorrection", "h_allChannel_mcpRef_ampWalkCorrection", 200, -100, 100)
 
-
+        
         # *** 2. Add all histograms to array
         self.histArray.AddLast(h_b1)
         self.histArray.AddLast(h_b2)
@@ -161,6 +162,13 @@ class barClass:
 
 
         # *** 3. Canvases and style
+        self.histArray = self.addSlicedHistograms(self.histArray, 1)
+        self.histArray = self.addSlicedHistograms(self.histArray, 2)
+        self.histArray = self.addSlicedHistograms(self.histArray, 3)
+        self.histArray = self.addSlicedHistograms(self.histArray, 4)
+        self.histArray = self.addSlicedHistograms(self.histArray, 5)
+
+        # *** 4. Canvases and style
         self.c1 = TCanvas("c1", "c1", 800, 800)
         self.c2 = TCanvas("c2", "c2", 800, 800)
         self.c3 = TCanvas("c3", "c3", 800, 800)
@@ -168,16 +176,45 @@ class barClass:
 
         gStyle.SetOptStat(0000)
 
-        # *** 4. Make some directories if not already existent
+        # *** 5. Make some directories if not already existent
         if not os.path.isdir(self.topDir):
             os.system( 'mkdir {0}'.format(self.topDir) )
         self.topDir = '{0}/{1}'.format(topDir, runType)
         if not os.path.isdir( '{0}/{1}'.format(topDir, runType) ):
             os.system( 'mkdir {0}'.format(self.topDir) )
 
-        # *** 5. Run analysis
+        # *** 6. Run analysis
         self.loopEvents()
 
+    # =============================
+
+    def addSlicedHistograms(self, arr, barNum):
+        """ function to add histograms sliced by x"""
+        
+        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+        rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+
+        x = -5
+        while x < 35:
+            xLow = str(x).replace('-','n')
+            xHigh = str(x+self.xSlice).replace('-','n')
+            xBase = '{0}_to_{1}'.format(xLow, xHigh)
+            #print xBase
+            h_r = TH1D('h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase), 'h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase), 300, -1500, 1500)
+            h_l = TH1D('h_ch{0}_timingRes_{1}'.format(leftSiPMchannel, xBase), 'h_ch{0}_timingRes_{1}'.format(leftSiPMchannel, xBase), 300, -1500, 1500)
+            h_r_mcp = TH1D('h_ch{0}_mcpRef_timingRes_{1}'.format(rightSiPMchannel, xBase), 'h_ch{0}_mcpRef_timingRes_{1}'.format(rightSiPMchannel, xBase), 350, -3500, 0)
+            h_l_mcp = TH1D('h_ch{0}_mcpRef_timingRes_{1}'.format(leftSiPMchannel, xBase), 'h_ch{0}_mcpRef_timingRes_{1}'.format(leftSiPMchannel, xBase), 350, -3500, 0)
+            h_b = TH1D('h_b{0}_timingRes_{1}'.format(barNum, xBase), 'h_b{0}_timingRes_{1}'.format(barNum, xBase), 300, -1500, 1500)
+            h_b_mcp = TH1D('h_b{0}_mcpRef_timingRes_{1}'.format(barNum, xBase), 'h_b{0}_mcpRef_timingRes_{1}'.format(barNum, xBase), 350, -3500, 0)
+            arr.AddLast(h_r)
+            arr.AddLast(h_l)
+            arr.AddLast(h_r_mcp)
+            arr.AddLast(h_l_mcp)
+            arr.AddLast(h_b)
+            arr.AddLast(h_b_mcp)
+            x += self.xSlice
+
+        return arr
     # =============================
 
     def setVarsByRunType(self, runType):
@@ -264,16 +301,14 @@ class barClass:
     
     
     # =============================
-
-    #def fillChannelPlots(self, event, barNum, h_b, h_mcp, h_r_vs_l, h_lr_x_vs_ratio, h_b_test, h_r_x_vs_amp, h_l_x_vs_amp, h_r_x_vs_time, h_l_x_vs_time, h_all_time, h_all_timeRes, h_all_timeLogic, h_mcpRef_timeRes, h_all_x_vs_timeRes, h_all_x_vs_mcpRef_timeRes, h_all_fitSlope_vs_mcpRef_timeRes, h_all_mcpRef_ampWalkCorrection, h_mcpRef_timeRes_ampWalkCorrected):
-    def fillChannelPlots(self, event, barNum, arr):
-        """ function to fill bar-specific plots"""
-        
-        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+    
+    def returnChannelNumbers(self, barNum):
+        """ single function to return mcp channel, time channel, and right/left SiPM channels for a given bar"""
         leftSiPMchannel  = -1
         rightSiPMchannel = -1
         mcpChannel       = -1
         timeChannel      = -1
+
         if barNum == 1 or barNum == 2 or barNum == 3:
             rightSiPMchannel = 2*barNum - 1
             leftSiPMchannel  = 2*barNum
@@ -285,6 +320,16 @@ class barClass:
             leftSiPMchannel  = 2*barNum + 3
             mcpChannel = 9
             timeChannel = 1
+
+        return rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel
+
+    # =============================
+
+    def fillChannelPlots(self, event, barNum, arr):
+        """ function to fill bar-specific plots"""
+        
+        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+        rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
 
         # logic to see if event should be vetoed based on signals in other bars
         doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt) # vetoOpt = none, singleAdj, doubleAdj, allAdj, all
@@ -331,7 +376,20 @@ class barClass:
                 arr.FindObject('h_allChannel_timingRes').Fill( deltaT ) 
                 arr.FindObject('h_allChannel_timing').Fill(mipTime_L)
                 arr.FindObject('h_allChannel_timing').Fill(mipTime_R)
+                # *** fill x-slice plots
+                x = -5
+                while x < 35:
+                    xLow = str(x).replace('-','n')
+                    xHigh = str(x+self.xSlice).replace('-','n')
+                    xBase = '{0}_to_{1}'.format(xLow, xHigh)
+                    if event.x_dut[2] >= x and event.x_dut[2] < x+self.xSlice:
+                        arr.FindObject('h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase)).Fill( deltaT )
+                        arr.FindObject('h_ch{0}_timingRes_{1}'.format(leftSiPMchannel, xBase)).Fill( deltaT )
+                        #print 'h_b{0}_timingRes_{1}'.format(barNum, xBase)
+                        arr.FindObject('h_b{0}_timingRes_{1}'.format(barNum, xBase)).Fill( deltaT )
+                    x += self.xSlice
                 
+                # *** Do timing resolution with MCP info ***
                 if mipTime_MCP != 0 and event.amp[mcpChannel] > 80 and event.amp[mcpChannel] < 160:
                     deltaT_mcp = 1000*(((mipTime_R + mipTime_L)/2) - mipTime_MCP) # multiple by 1000 to transfer from ns to ps
                     arr.FindObject('h_allChannel_x_vs_mcpRef_timingRes').Fill(event.x_dut[2], deltaT_mcp)
@@ -343,6 +401,19 @@ class barClass:
                     arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(deltaT_mcp, fitSlope_R)
                     arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(deltaT_mcp, fitSlope_L)
 
+                    # *** fill x-slice plots w/ mcp data
+                    x = -5
+                    while x < 35:
+                        xLow = str(x).replace('-','n')
+                        xHigh = str(x+self.xSlice).replace('-','n')
+                        xBase = '{0}_to_{1}'.format(xLow, xHigh)
+                        if event.x_dut[2] >= x and event.x_dut[2] < x+self.xSlice:
+                            arr.FindObject('h_ch{0}_mcpRef_timingRes_{1}'.format(rightSiPMchannel, xBase)).Fill( deltaT_mcp )
+                            arr.FindObject('h_ch{0}_mcpRef_timingRes_{1}'.format(leftSiPMchannel, xBase)).Fill( deltaT_mcp )
+                            arr.FindObject('h_b{0}_mcpRef_timingRes_{1}'.format(barNum, xBase)).Fill( deltaT_mcp )
+                        x += self.xSlice
+                        
+            
                     # ****   amp-walk corrected plots   ****
                     f_ampWalkCorrected = TF1()
                     if self.vetoOpt == 'singleAdj':
@@ -577,7 +648,7 @@ class barClass:
         nTotal=0
 
         for event in self.tree:        
-            if nTotal > 10000 and self.isTest:
+            if nTotal > 1000 and self.isTest:
                 break
 
             nTotal += 1
@@ -701,6 +772,17 @@ class barClass:
         self.c4.cd()
         self.histArray.FindObject('h_allChannel_timingLogic').Draw("TEXT")
         self.c4.Print( "{0}/h_allChannel_timingLogic.png".format(self.topDir) )
+
+        self.drawTimingResXSlices(self.c4, self.histArray, 1, usingMCP=False)
+        self.drawTimingResXSlices(self.c4, self.histArray, 1, usingMCP=True)
+        self.drawTimingResXSlices(self.c4, self.histArray, 2, usingMCP=False)
+        self.drawTimingResXSlices(self.c4, self.histArray, 2, usingMCP=True)
+        self.drawTimingResXSlices(self.c4, self.histArray, 3, usingMCP=False)
+        self.drawTimingResXSlices(self.c4, self.histArray, 3, usingMCP=True)
+        self.drawTimingResXSlices(self.c4, self.histArray, 4, usingMCP=False)
+        self.drawTimingResXSlices(self.c4, self.histArray, 4, usingMCP=True)
+        self.drawTimingResXSlices(self.c4, self.histArray, 5, usingMCP=False)
+        self.drawTimingResXSlices(self.c4, self.histArray, 5, usingMCP=True)
 
         # === function graveyard. keep for reference"
         #self.drawXquadrants(self.c4, self.histArray.FindObject('h_ch1_ch2_ratio_x1, self.histArray.FindObject('h_ch1_ch2_ratio_x2, self.histArray.FindObject('h_ch1_ch2_ratio_x3, self.histArray.FindObject('h_ch1_ch2_ratio_x4, 1, 'Right/Left')
@@ -967,6 +1049,44 @@ class barClass:
 
 
         c0.Print(filename)
+
+    # =============================
+
+    def drawTimingResXSlices(self, c0, arr, barNum, usingMCP=False):
+        """ function to make pretty canvas of x-slices of timing res """
+        
+        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+        rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+
+        hname = 'h_b{0}_timingRes'.format(barNum)
+        if usingMCP:
+            hname = 'h_b{0}_mcpRef_timingRes'.format(barNum)
+
+        leg = TLegend(0.68, 0.68, .93, .88);
+        legendCol = [1, 600, 632, 416+2, 616-3, 800+7, 432-3, 900-3] # kBlack, kBlue, kRed, kGreen+2, kMagenta-3, kOrange+7, kCyan-3, kPink-3
+        nSlices = 0
+        x = -5
+        c0.cd()
+
+        while x < 35:
+            xLow = str(x).replace('-','n')
+            xHigh = str(x+self.xSlice).replace('-','n')
+            xBase = '{0}_to_{1}'.format(xLow, xHigh)
+            #h_b = TH1D('{0}_{1}'.format(hname, xBase), '{0}_{1}'.format(hname, xBase), 300, -1500, 1500)
+            h_b = arr.FindObject('{0}_{1}'.format(hname, xBase))
+            h_b.SetLineColor(legendCol[nSlices])
+            leg.AddEntry(h_b, xBase.replace('n','-').replace('_',' '), "l")
+            if nSlices == 0:
+                h_b.GetYaxis().SetRangeUser(0, 1.4*h_b.GetBinContent(h_b.GetMaximumBin()))
+                h_b.Draw()
+            else:
+                h_b.Draw("same")
+
+            nSlices += 1
+            x += self.xSlice
+            
+        leg.Draw("same")
+        c0.Print('{0}/{1}_byXslice.png'.format(self.topDir, hname))
 
     # =============================
 
