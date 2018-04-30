@@ -18,6 +18,7 @@ class barClass:
         self.yBoundaries = []
         self.yIntegralOffset = 0
         self.setVarsByRunType(runType)
+        self.runType = runType
         self.vetoOpt = vetoOpt
         self.isTest = test
         self.fitPercentThreshold = 0.06
@@ -34,7 +35,11 @@ class barClass:
         self.histArray = TObjArray() 
         self.xSlice = 5 # in mm
         self.slopeSlice = 15 # arb units
-
+        self.peakFitFunction = "landau"
+        self.peakFitRiseThreshold = 400 # in mV
+        self.peakFitFallThreshold = 800 # in mV
+        self.peakFitVoltageVeto = 875 # in mV
+                
         # *** 1. Define all histograms
         h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
         h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
@@ -100,6 +105,7 @@ class barClass:
         h_allChannel_mcpRef_timingRes_ampWalkCorrected = TH1D("h_allChannel_mcpRef_timingRes_ampWalkCorrected", "h_allChannel_mcpRef_timingRes_ampWalkCorrected", 350, -3500, 0)
         h_allChannel_mcpRef_ampWalkCorrection = TH1D("h_allChannel_mcpRef_ampWalkCorrection", "h_allChannel_mcpRef_ampWalkCorrection", 200, -100, 100)
 
+        h_allChannel_ampFit_percentError = TH1D("h_allChannel_ampFit_percentError", "h_allChannel_ampFit_percentError", 100, -50, 50)
         
         # *** 2. Add all histograms to array
         self.histArray.AddLast(h_b1)
@@ -161,6 +167,7 @@ class barClass:
         self.histArray.AddLast(h_allChannel_mcpRef_timingRes_ampWalkCorrected)
         self.histArray.AddLast(h_allChannel_mcpRef_ampWalkCorrection)
 
+        self.histArray.AddLast(h_allChannel_ampFit_percentError)
 
         # *** 3. add x-sliced histograms
         self.histArray = self.addSlicedHistograms(self.histArray)
@@ -280,13 +287,14 @@ class barClass:
             self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
             self.yIntegralOffset = 2.5
         elif runType == "bottomBars_66V":
-            self.signalThreshold = 30
+            self.signalThreshold = 60
             self.vetoThreshold   = 30
             self.xBoundaries = [17, 19, 21, 23, 25]
             self.yBoundaries = [4.5, 9.5, 13.5, 16.5, 20.5] #5, 9, 13
             self.yIntegralOffset = 2.5
+
         elif runType == "topBars_66V":
-            self.signalThreshold = 30
+            self.signalThreshold = 60
             self.vetoThreshold   = 30
             self.xBoundaries = [17, 19, 21, 23, 25]
             self.yBoundaries = [25, 25, 2.5, 7.5, 11.5] # 6-9, 1-4 (bins) 10-13
@@ -403,8 +411,8 @@ class barClass:
             # timing stuff
             #mipTime_R, fitSlope_R, mipTime_R_ampWalkCorrected = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
             #mipTime_L, fitSlope_L, mipTime_L_ampWalkCorrected = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
-            fitStartTime_R, fitStartVoltage_R, fitSlope_R = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
-            fitStartTime_L, fitStartVoltage_L, fitSlope_L = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
+            fitStartTime_R, fitStartVoltage_R, fitSlope_R, ampFitPercentErr_R = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
+            fitStartTime_L, fitStartVoltage_L, fitSlope_L, ampFitPercentErr_L = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
             mipTime_MCP = event.t_peak[mcpChannel]
 
             if fitSlope_R == 0:
@@ -420,8 +428,9 @@ class barClass:
             if mipTime_R != 0 and mipTime_L != 0:
                 arr.FindObject('h_ch{0}_x_vs_time'.format(rightSiPMchannel)).Fill(event.x_dut[2], mipTime_R)
                 arr.FindObject('h_ch{0}_x_vs_time'.format(leftSiPMchannel)).Fill(event.x_dut[2], mipTime_L)
-
                 arr.FindObject('h_allChannel_timingLogic').Fill("Both",1)
+                arr.FindObject('h_allChannel_ampFit_percentError').Fill(100*ampFitPercentErr_L)
+                arr.FindObject('h_allChannel_ampFit_percentError').Fill(100*ampFitPercentErr_R)
 
                 deltaT = 1000*(mipTime_L - mipTime_R) # multiple by 1000 to transfer from ns to ps
                 arr.FindObject('h_allChannel_x_vs_timingRes').Fill(event.x_dut[2], deltaT)
@@ -549,6 +558,7 @@ class barClass:
         fitSlope = 0
         fitRes = 0
         slopeRes = 0
+        peakFit_percentError = 0
         i = 0
         l_time = []
         l_channel = []
@@ -563,26 +573,35 @@ class barClass:
         g = TGraph()       
         i_peakFit=0
         g_peakFit = TGraph()       
+        voltageVeto = self.peakFitVoltageVeto
+        if '66V' in self.runType:
+            voltageVeto = 0.875*max(l_channel)
+
         while i < 1024:
             g.SetPoint(i, l_time[i], l_channel[i])        
-            if l_channel[i] < 920:
-                g.SetPoint(i_peak, l_time[i], l_channel[i])        
-                i_peak += 1
+            if l_channel[i] < voltageVeto:
+                g_peakFit.SetPoint(i_peakFit, l_time[i], l_channel[i])        
+                i_peakFit += 1
             i=i+1
 
-        fn1 = TF1("fn1", self.fitFunction) # first degree polynomial --> this is just a choice atm
+        fn1 = TF1("fn1", self.fitFunction) # get function from user config
         startFit = self.getWaveformInfo_TOFPET(l_time, l_channel)
         timeWindow = self.fitTimeWindow
         if drs_channel == 0 or drs_channel == 9:
             startFit = self.getWaveformInfo_MCP(l_time, l_channel)
             timeWindow = self.fitMCPTimeWindow
         
-        #if i_evt == 2703:
-        #    print '1) {0}'.format(timeStep)
 
         if startFit > 1 and (startFit + timeWindow) < 1024: # protection against weird waveforms
             fn1.SetRange(l_time[startFit], l_time[startFit + timeWindow])
             g.Fit("fn1", "QR")
+
+            fnPeak = TF1("fnPeak", self.peakFitFunction)
+            startPeakFit, endPeakFit = self.getWaveformInfo_peakFit(l_time, l_channel, isLowBias=True)
+            fnPeak.SetRange(l_time[startPeakFit], l_time[endPeakFit])
+            g_peakFit.Fit("fnPeak", "QR")
+            peakFit_percentError = (fnPeak.Eval(fnPeak.GetParameter(1))-max(l_channel)) / max(l_channel) #FIXME
+
 
             fnR = g.GetFunction("fn1")
             # numerical solution for timing info
@@ -590,22 +609,16 @@ class barClass:
             timeStep = l_time[startFit] # timestamp to start at (use startFit cuz... duh)
 
             if fnR.Eval(timeStep) > self.fitVoltageThreshold: # sometimes we need to push back start when first point of fit is waay beyond fitThresholdVoltage due to steep risetime
-                #if i_evt == 2703:
-                #    print "REWIND, evt {0}, timeStep: ({1:0.3f}, {2:0.3f})".format(i_evt, timeStep, fnR.Eval(timeStep))
                 while fnR.Eval(timeStep) > self.fitVoltageThreshold: 
                     timeStep = timeStep - 0.001 
                     if timeStep < 0:
                         break
-                #if i_evt == 2703:
-                #    print "REWIND, evt {0}, evalFit: ({1:0.3f}, {2:0.3f})".format(i_evt, timeStep, fnR.Eval(timeStep))
+                        
             evalFit = timeStep
 
             if drs_channel == 0 or drs_channel == 9:
                 fitStop = self.fitMCPVoltageForTiming
                 
-            #if i_evt == 2703:
-            #    print '2) {0}'.format(timeStep)
-
             fitRes, fitSlope = self.numericalSolve(fnR, evalFit, 0.001, fitStop)
             if fitSlope != 0:
                 timeDiff = (50.000 - fnR.Eval(evalFit))/fitSlope
@@ -653,7 +666,18 @@ class barClass:
 
                 # draw graph without saturated peak
                 c5.cd()
-                g_fitPeak.Draw()
+                g_peakFit.Draw()
+                g_peakFit.GetYaxis().SetRangeUser(1.4*min(l_channel), 1.2*fnPeak.Eval(fnPeak.GetParameter(1)))
+                g_peakFit.Draw()
+                ltxIn = TLatex()
+                ltxIn.SetTextAlign(9)
+                ltxIn.SetTextFont(62)
+                ltxIn.SetTextSize(0.021)
+                ltxIn.SetNDC()
+                ltxIn.DrawLatex(0.66, 0.81, "t(max): {0:0.3f} [Fit]".format(fnPeak.GetParameter(1)))
+                ltxIn.DrawLatex(0.66, 0.785, "A(max): {0:0.1f} [Fit]".format(fnPeak.Eval(fnPeak.GetParameter(1))))
+                ltxIn.DrawLatex(0.66, 0.76, "A(max): {0:0.1f} [Real]".format(max(l_channel)))
+
                 c5.Print( "{0}/waveformWithoutSaturation_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
 
                 print 'Fit Result = {0}, Fit Slope = {1}'.format(fitRes, fitSlope)
@@ -661,23 +685,15 @@ class barClass:
                 print 'Lin Amp = {0}, Fit Amp = {1}'.format(fnR.Eval(slopeRes), fnR.Eval(fitRes))
                 print 'Chi2 / NDF = {0:0.1f} / {1:0.1f} = {2:0.1f}'.format(fnR.GetChisquare(), fnR.GetNDF(), fnR.GetChisquare()/fnR.GetNDF() ) 
 
-            #if i_evt == 2703:
-            #    print '2) {0}'.format(fitRes)
 
             if (fitRes - evalFit) < 0.002:
                 print "only one step, evt {0}, startFit: ({1:0.3f}, {2:0.3f}), fitted: ({3:0.3f}, {4:0.3f})".format(i_evt, evalFit, fnR.Eval(evalFit), fitRes, fnR.Eval(fitRes))
 
-        #if i_evt == 2703:
-        #    print '3) {0}'.format(fitRes)
 
         if fitRes <= evalFit or fitRes >= evalFit + 35: # something wonky --> not good
-            return 0, 0, 0
+            return 0, 0, 0, 0
         else: # good timing result!
-            #if i_evt == 2703:
-            #    print '4) {0}'.format(fitRes)
-            #return fitRes, fitSlope
-            #return slopeRes, fitSlope, result_ampWalkCorrected
-            return evalFit, fnR.Eval(evalFit), fitSlope
+            return evalFit, fnR.Eval(evalFit), fitSlope, peakFit_percentError
 
     # =============================
 
@@ -726,6 +742,43 @@ class barClass:
         #print 'thresh met at', threshold_stamp, 'with', channel[threshold_stamp]
 
         return threshold_stamp
+
+    # =============================
+
+    def getWaveformInfo_peakFit(self, time, channel, isLowBias=False):
+        """ function to calculate and return information about waveform for fitting"""
+
+        # there are probably better ways to do all of this in python...
+        rise_timestamp = -1
+        fall_timestamp = -1
+        previousPoint = 0
+        i = 0
+        
+        if isLowBias:
+            maxVal = max(channel)
+            riseThreshold = 0.4*maxVal
+            fallThreshold = 0.8*maxVal
+        else:
+            riseThreshold = self.peakFitRiseThreshold
+            fallThreshold = self.peakFitFallThreshold
+
+        # find first reading above voltage threshold i.e. place to start fit
+        for reading in channel:
+            if abs(reading) > riseThreshold and rise_timestamp == -1:
+                rise_timestamp = i
+                fall_timestamp = 0 # start to look for falling
+            #if fall_timestamp == 0 and abs(reading) < fallThreshold and abs(reading) < abs(previousPoint):
+            if fall_timestamp == 0 and abs(reading) < fallThreshold and time[i] > time[channel.index(max(channel))]:
+                fall_timestamp = i
+        
+            previousPoint = reading
+
+            i = i + 1
+
+        #print 'rise at', rise_timestamp, 'with', channel[rise_timestamp]
+        #print 'fall at', fall_timestamp, 'with', channel[fall_timestamp]
+
+        return rise_timestamp, fall_timestamp
 
     # =============================
 
@@ -867,6 +920,22 @@ class barClass:
         self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_timingRes_ampWalkCorrected'), True, True)
 
         self.c4.cd()
+        self.histArray.FindObject('h_allChannel_ampFit_percentError').SetXTitle("(Fit Amp - Real Amp) / Real Amp")
+        self.histArray.FindObject('h_allChannel_ampFit_percentError').SetYTitle("Entries / 1%")
+        self.histArray.FindObject('h_allChannel_ampFit_percentError').SetTitle("")
+        f_err = TF1("f_err", "gaus", -10, 20) # gaussian
+        self.histArray.FindObject('h_allChannel_ampFit_percentError').Fit("f_err", "QR") # should be "R" to impose range
+        self.histArray.FindObject('h_allChannel_ampFit_percentError').Draw()
+        ltxE = TLatex()
+        ltxE.SetTextAlign(9)
+        ltxE.SetTextFont(62)
+        ltxE.SetTextSize(0.021)
+        ltxE.SetNDC()
+        ltxE.DrawLatex(0.75, 0.81, "Mean: {0:0.2}".format(f_err.GetParameter(1)))
+        ltxE.DrawLatex(0.75, 0.785, "Sigma: {0:0.2}".format(f_err.GetParameter(2)))
+        self.c4.Print( "{0}/h_allChannel_ampFit_percentError.png".format(self.topDir) )
+
+        self.c4.cd()
         self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').SetXTitle("Amp Walk Correction [ps]")
         self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').SetYTitle("Entries / 1 ps")
         self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').Draw()
@@ -906,7 +975,6 @@ class barClass:
 
         self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=False)
         self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=True)
-
 
         # === function graveyard. keep for reference"
         #self.drawXquadrants(self.c4, self.histArray.FindObject('h_ch1_ch2_ratio_x1, self.histArray.FindObject('h_ch1_ch2_ratio_x2, self.histArray.FindObject('h_ch1_ch2_ratio_x3, self.histArray.FindObject('h_ch1_ch2_ratio_x4, 1, 'Right/Left')
@@ -1258,8 +1326,6 @@ class barClass:
         while abs(y_calc) < abs(y_end):
             store = y_calc
             y_calc = func.Eval(x_eval)
-            #if i_evt == 2703:
-            #    print 'old: {0}, new: {1}'.format(store, voltageFromFunction)
             x_eval += x_step
             if x_eval > x_start + 35: # scan over window of 35 ps
                 break
