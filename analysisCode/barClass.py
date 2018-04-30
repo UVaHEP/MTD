@@ -28,11 +28,12 @@ class barClass:
         self.fitMCPVoltageThreshold = 20 # in mV
         self.fitMCPVoltageForTiming = 40 # in mV
         self.fitSignalThreshold = 400 # in mV
-        self.fitTimeWindow = 7
+        self.fitTimeWindow = 4
         self.fitMCPTimeWindow = 4
-        self.fitFunction = "landau"
+        self.fitFunction = "gaus"
         self.histArray = TObjArray() 
         self.xSlice = 5 # in mm
+        self.slopeSlice = 15 # arb units
 
         # *** 1. Define all histograms
         h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
@@ -94,8 +95,8 @@ class barClass:
         h_allChannel_x_vs_timingRes = TProfile("h_allChannel_x_vs_timingRes", "h_allChannel_x_vs_timingRes", 40, -5, 35, -1500, 1500)
         #h_allChannel_x_vs_mcpRef_timingRes = TProfile("h_allChannel_x_vs_mcpRef_timingRes", "h_allChannel_x_vs_mcpRef_timingRes", 40, -5, 35, -1500, 1500)
         h_allChannel_x_vs_mcpRef_timingRes = TProfile("h_allChannel_x_vs_mcpRef_timingRes", "h_allChannel_x_vs_mcpRef_timingRes", 40, -5, 35, -2600, -1800)
-        #h_allChannel_fitSlope_vs_mcpRef_timingRes = TProfile("h_allChannel_fitSlope_vs_mcpRef_timingRes", "h_allChannel_fitSlope_vs_mcpRef_timingRes", 26, 50, 180, -2600, -1800)
-        h_allChannel_fitSlope_vs_mcpRef_timingRes = TProfile("h_allChannel_fitSlope_vs_mcpRef_timingRes", "h_allChannel_fitSlope_vs_mcpRef_timingRes", 150, -3000, -1500, 60, 180)
+        h_allChannel_fitSlope_vs_mcpRef_timingRes = TProfile("h_allChannel_fitSlope_vs_mcpRef_timingRes", "h_allChannel_fitSlope_vs_mcpRef_timingRes", 26, 50, 180, -2600, -1800)
+        #h_allChannel_fitSlope_vs_mcpRef_timingRes = TProfile("h_allChannel_fitSlope_vs_mcpRef_timingRes", "h_allChannel_fitSlope_vs_mcpRef_timingRes", 150, -3000, -1500, 60, 180)
         h_allChannel_mcpRef_timingRes_ampWalkCorrected = TH1D("h_allChannel_mcpRef_timingRes_ampWalkCorrected", "h_allChannel_mcpRef_timingRes_ampWalkCorrected", 350, -3500, 0)
         h_allChannel_mcpRef_ampWalkCorrection = TH1D("h_allChannel_mcpRef_ampWalkCorrection", "h_allChannel_mcpRef_ampWalkCorrection", 200, -100, 100)
 
@@ -161,12 +162,8 @@ class barClass:
         self.histArray.AddLast(h_allChannel_mcpRef_ampWalkCorrection)
 
 
-        # *** 3. Canvases and style
-        self.histArray = self.addSlicedHistograms(self.histArray, 1)
-        self.histArray = self.addSlicedHistograms(self.histArray, 2)
-        self.histArray = self.addSlicedHistograms(self.histArray, 3)
-        self.histArray = self.addSlicedHistograms(self.histArray, 4)
-        self.histArray = self.addSlicedHistograms(self.histArray, 5)
+        # *** 3. add x-sliced histograms
+        self.histArray = self.addSlicedHistograms(self.histArray)
 
         # *** 4. Canvases and style
         self.c1 = TCanvas("c1", "c1", 800, 800)
@@ -188,11 +185,11 @@ class barClass:
 
     # =============================
 
-    def addSlicedHistograms(self, arr, barNum):
+    def addSlicedHistograms(self, arr):
         """ function to add histograms sliced by x"""
         
         # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
-        rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+        #rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
 
         x = -5
         while x < 35:
@@ -200,21 +197,77 @@ class barClass:
             xHigh = str(x+self.xSlice).replace('-','n')
             xBase = '{0}_to_{1}'.format(xLow, xHigh)
             #print xBase
-            h_r = TH1D('h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase), 'h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase), 300, -1500, 1500)
-            h_l = TH1D('h_ch{0}_timingRes_{1}'.format(leftSiPMchannel, xBase), 'h_ch{0}_timingRes_{1}'.format(leftSiPMchannel, xBase), 300, -1500, 1500)
-            h_r_mcp = TH1D('h_ch{0}_mcpRef_timingRes_{1}'.format(rightSiPMchannel, xBase), 'h_ch{0}_mcpRef_timingRes_{1}'.format(rightSiPMchannel, xBase), 350, -3500, 0)
-            h_l_mcp = TH1D('h_ch{0}_mcpRef_timingRes_{1}'.format(leftSiPMchannel, xBase), 'h_ch{0}_mcpRef_timingRes_{1}'.format(leftSiPMchannel, xBase), 350, -3500, 0)
-            h_b = TH1D('h_b{0}_timingRes_{1}'.format(barNum, xBase), 'h_b{0}_timingRes_{1}'.format(barNum, xBase), 300, -1500, 1500)
-            h_b_mcp = TH1D('h_b{0}_mcpRef_timingRes_{1}'.format(barNum, xBase), 'h_b{0}_mcpRef_timingRes_{1}'.format(barNum, xBase), 350, -3500, 0)
-            arr.AddLast(h_r)
-            arr.AddLast(h_l)
-            arr.AddLast(h_r_mcp)
-            arr.AddLast(h_l_mcp)
-            arr.AddLast(h_b)
-            arr.AddLast(h_b_mcp)
+        
+            h_b1 = TH1D('h_b1_timingRes_{0}'.format(xBase), 'h_b1_timingRes_{0}'.format(xBase), 150, -1500, 1500)
+            h_b2 = TH1D('h_b2_timingRes_{0}'.format(xBase), 'h_b2_timingRes_{0}'.format(xBase), 150, -1500, 1500)
+            h_b3 = TH1D('h_b3_timingRes_{0}'.format(xBase), 'h_b3_timingRes_{0}'.format(xBase), 150, -1500, 1500)
+            h_b4 = TH1D('h_b4_timingRes_{0}'.format(xBase), 'h_b4_timingRes_{0}'.format(xBase), 150, -1500, 1500)
+            h_b5 = TH1D('h_b5_timingRes_{0}'.format(xBase), 'h_b5_timingRes_{0}'.format(xBase), 150, -1500, 1500)
+            h_b1_mcp = TH1D('h_b1_mcpRef_timingRes_{0}'.format(xBase), 'h_b1_mcpRef_timingRes_{0}'.format(xBase), 175, -3500, 0)
+            h_b2_mcp = TH1D('h_b2_mcpRef_timingRes_{0}'.format(xBase), 'h_b2_mcpRef_timingRes_{0}'.format(xBase), 175, -3500, 0)
+            h_b3_mcp = TH1D('h_b3_mcpRef_timingRes_{0}'.format(xBase), 'h_b3_mcpRef_timingRes_{0}'.format(xBase), 175, -3500, 0)
+            h_b4_mcp = TH1D('h_b4_mcpRef_timingRes_{0}'.format(xBase), 'h_b4_mcpRef_timingRes_{0}'.format(xBase), 175, -3500, 0)
+            h_b5_mcp = TH1D('h_b5_mcpRef_timingRes_{0}'.format(xBase), 'h_b5_mcpRef_timingRes_{0}'.format(xBase), 175, -3500, 0)
+        
+            h_all = TH1D('h_allBar_timingRes_{0}'.format(xBase), 'h_allBar_timingRes_{0}'.format(xBase), 150, -1500, 1500)
+            h_all_mcp = TH1D('h_allBar_mcpRef_timingRes_{0}'.format(xBase), 'h_allBar_mcpRef_timingRes_{0}'.format(xBase), 175, -3500, 0)
+
+            arr.AddLast(h_b1)
+            arr.AddLast(h_b2)
+            arr.AddLast(h_b3)
+            arr.AddLast(h_b4)
+            arr.AddLast(h_b5)
+            arr.AddLast(h_b1_mcp)
+            arr.AddLast(h_b2_mcp)
+            arr.AddLast(h_b3_mcp)
+            arr.AddLast(h_b4_mcp)
+            arr.AddLast(h_b5_mcp)
+
+            arr.AddLast(h_all)
+            arr.AddLast(h_all_mcp)
+
             x += self.xSlice
 
+
+        m = 60
+        while m < 150:
+            mLow = str(m)
+            mHigh = str(m+self.slopeSlice)
+            mBase = '{0}_to_{1}'.format(mLow, mHigh)
+            #print xBase
+         
+            h_b1_m = TH1D('h_b1_timingRes_byFitSlope_{0}'.format(mBase), 'h_b1_timingRes_byFitSlope_{0}'.format(mBase), 150, -1500, 1500)
+            h_b2_m = TH1D('h_b2_timingRes_byFitSlope_{0}'.format(mBase), 'h_b2_timingRes_byFitSlope_{0}'.format(mBase), 150, -1500, 1500)
+            h_b3_m = TH1D('h_b3_timingRes_byFitSlope_{0}'.format(mBase), 'h_b3_timingRes_byFitSlope_{0}'.format(mBase), 150, -1500, 1500)
+            h_b4_m = TH1D('h_b4_timingRes_byFitSlope_{0}'.format(mBase), 'h_b4_timingRes_byFitSlope_{0}'.format(mBase), 150, -1500, 1500)
+            h_b5_m = TH1D('h_b5_timingRes_byFitSlope_{0}'.format(mBase), 'h_b5_timingRes_byFitSlope_{0}'.format(mBase), 150, -1500, 1500)
+            h_b1_mcp_m = TH1D('h_b1_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 'h_b1_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 175, -3500, 0)
+            h_b2_mcp_m = TH1D('h_b2_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 'h_b2_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 175, -3500, 0)
+            h_b3_mcp_m = TH1D('h_b3_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 'h_b3_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 175, -3500, 0)
+            h_b4_mcp_m = TH1D('h_b4_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 'h_b4_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 175, -3500, 0)
+            h_b5_mcp_m = TH1D('h_b5_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 'h_b5_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 175, -3500, 0)
+
+            h_all_m = TH1D('h_allBar_timingRes_byFitSlope_{0}'.format(mBase), 'h_allBar_timingRes_byFitSlope_{0}'.format(mBase), 150, -1500, 1500)
+            h_all_mcp_m = TH1D('h_allBar_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 'h_allBar_mcpRef_timingRes_byFitSlope_{0}'.format(mBase), 175, -3500, 0)
+
+            arr.AddLast(h_b1_m)
+            arr.AddLast(h_b2_m)
+            arr.AddLast(h_b3_m)
+            arr.AddLast(h_b4_m)
+            arr.AddLast(h_b5_m)
+            arr.AddLast(h_b1_mcp_m)
+            arr.AddLast(h_b2_mcp_m)
+            arr.AddLast(h_b3_mcp_m)
+            arr.AddLast(h_b4_mcp_m)
+            arr.AddLast(h_b5_mcp_m)
+
+            arr.AddLast(h_all_m)
+            arr.AddLast(h_all_mcp_m)
+
+            m += self.slopeSlice
+
         return arr
+
     # =============================
 
     def setVarsByRunType(self, runType):
@@ -383,11 +436,29 @@ class barClass:
                     xHigh = str(x+self.xSlice).replace('-','n')
                     xBase = '{0}_to_{1}'.format(xLow, xHigh)
                     if event.x_dut[2] >= x and event.x_dut[2] < x+self.xSlice:
-                        arr.FindObject('h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase)).Fill( deltaT )
-                        arr.FindObject('h_ch{0}_timingRes_{1}'.format(leftSiPMchannel, xBase)).Fill( deltaT )
-                        #print 'h_b{0}_timingRes_{1}'.format(barNum, xBase)
+                        #arr.FindObject('h_ch{0}_timingRes_{1}'.format(rightSiPMchannel, xBase)).Fill( deltaT )
                         arr.FindObject('h_b{0}_timingRes_{1}'.format(barNum, xBase)).Fill( deltaT )
+                        arr.FindObject('h_allBar_timingRes_{0}'.format(xBase)).Fill( deltaT )
                     x += self.xSlice
+
+                # *** fill slope-slice plots
+                m = 60
+                while m < 150:
+                    mLow = str(m)
+                    mHigh = str(m+self.slopeSlice)
+                    mBase = '{0}_to_{1}'.format(mLow, mHigh)
+
+                    if fitSlope_R >= m and fitSlope_R < m+self.slopeSlice:
+                        arr.FindObject('h_b{0}_timingRes_byFitSlope_{1}'.format(barNum, mBase)).Fill( deltaT )
+                        arr.FindObject('h_allBar_timingRes_byFitSlope_{0}'.format(mBase)).Fill( deltaT )
+                    if fitSlope_L >= m and fitSlope_L < m+self.slopeSlice:
+                        arr.FindObject('h_b{0}_timingRes_byFitSlope_{1}'.format(barNum, mBase)).Fill( deltaT )
+                        arr.FindObject('h_allBar_timingRes_byFitSlope_{0}'.format(mBase)).Fill( deltaT )
+                    # !!!! slopes are usually not in same slice! investigate later
+                    #if fitSlope_R >= m and fitSlope_R < m+self.slopeSlice and fitSlope_L >= m and fitSlope_L < m+self.slopeSlice:
+                    #    arr.FindObject('h_allBar_timingRes_byFitSlope_{0}'.format(mBase)).Fill( deltaT )
+
+                    m += self.slopeSlice
                 
                 # *** Do timing resolution with MCP info ***
                 if mipTime_MCP != 0 and event.amp[mcpChannel] > 80 and event.amp[mcpChannel] < 160:
@@ -396,10 +467,10 @@ class barClass:
                     #if event.x_dut[2] > 5 and event.x_dut[2] < 25 and event.amp[rightSiPMchannel] > self.fitSignalThreshold: # keep it central
                     arr.FindObject('h_allChannel_mcpRef_timingRes').Fill( deltaT_mcp )
                     arr.FindObject('h_allChannel_timing').Fill(mipTime_MCP)
-                    #h_all_fitSlope_vs_mcpRef_timeRes.Fill(fitSlope_R, deltaT_mcp)
-                    #h_all_fitSlope_vs_mcpRef_timeRes.Fill(fitSlope_L, deltaT_mcp)
-                    arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(deltaT_mcp, fitSlope_R)
-                    arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(deltaT_mcp, fitSlope_L)
+                    #arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(fitSlope_R, deltaT_mcp)
+                    #arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(fitSlope_L, deltaT_mcp)
+                    arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill( (fitSlope_L+fitSlope_R)/2, deltaT_mcp)
+                    
 
                     # *** fill x-slice plots w/ mcp data
                     x = -5
@@ -408,27 +479,53 @@ class barClass:
                         xHigh = str(x+self.xSlice).replace('-','n')
                         xBase = '{0}_to_{1}'.format(xLow, xHigh)
                         if event.x_dut[2] >= x and event.x_dut[2] < x+self.xSlice:
-                            arr.FindObject('h_ch{0}_mcpRef_timingRes_{1}'.format(rightSiPMchannel, xBase)).Fill( deltaT_mcp )
-                            arr.FindObject('h_ch{0}_mcpRef_timingRes_{1}'.format(leftSiPMchannel, xBase)).Fill( deltaT_mcp )
                             arr.FindObject('h_b{0}_mcpRef_timingRes_{1}'.format(barNum, xBase)).Fill( deltaT_mcp )
+                            arr.FindObject('h_allBar_mcpRef_timingRes_{0}'.format(xBase)).Fill( deltaT_mcp )
                         x += self.xSlice
-                        
-            
-                    # ****   amp-walk corrected plots   ****
-                    f_ampWalkCorrected = TF1()
-                    if self.vetoOpt == 'singleAdj':
-                        f_ampWalkCorrected = TF1("slope_ampWalkCorrected", "(-0.004)*x*x*x + (0.357)*x*x + (-13.681)*x + (-2077.244)") # from 50k run using singleAdj veto
-                    if self.vetoOpt == 'doubleAdj':
-                        f_ampWalkCorrected = TF1("slope_ampWalkCorrected", "(-0.031)*x + (23.392)") # from 50k run using doubleAdj veto
+                    
+                    # *** fill slope-slice plots
+                    m = 60
+                    while m < 150:
+                        mLow = str(m)
+                        mHigh = str(m+self.slopeSlice)
+                        mBase = '{0}_to_{1}'.format(mLow, mHigh)
 
-                    mipTime_R_ampWalkCorrected = fitStartTime_R + (self.fitVoltageForTiming - fitStartVoltage_R)/f_ampWalkCorrected.Eval(deltaT_mcp)
+                        if fitSlope_R >= m and fitSlope_R < m+self.slopeSlice:
+                            arr.FindObject('h_b{0}_mcpRef_timingRes_byFitSlope_{1}'.format(barNum, mBase)).Fill( deltaT_mcp )
+                            arr.FindObject('h_allBar_mcpRef_timingRes_byFitSlope_{0}'.format(mBase)).Fill( deltaT_mcp )
+                        if fitSlope_L >= m and fitSlope_L < m+self.slopeSlice:
+                            arr.FindObject('h_b{0}_mcpRef_timingRes_byFitSlope_{1}'.format(barNum, mBase)).Fill( deltaT_mcp )
+                            arr.FindObject('h_allBar_mcpRef_timingRes_byFitSlope_{0}'.format(mBase)).Fill( deltaT_mcp )
+                        # !!!! slopes are usually not in same slice! investigate later
+                        #if fitSlope_R >= m and fitSlope_R < m+self.slopeSlice and fitSlope_L >= m and fitSlope_L < m+self.slopeSlice:
+                        #    arr.FindObject('h_allBar_mcpRef_timingRes_byFitSlope_{0}'.format(mBase)).Fill( deltaT_mcp )
+
+                        m += self.slopeSlice
+                        
+                    # ****   amp-walk corrected plots   ****
+                    f_ampWalkCorrection = TF1()
+                    if self.vetoOpt == 'singleAdj':
+                        f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-0.004)*x*x*x + (0.357)*x*x + (-13.681)*x + (-2077.244)") # from 50k run using singleAdj veto
+                    if self.vetoOpt == 'doubleAdj':
+                        #f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-2.3285)*x + (-2053.81)") # from 10k run using doubleAdj veto (using R and L independently)
+                        f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-5.5129)*x + (-1731.97)") # from 10k run using doubleAdj veto (using R+L/2 )
+
+                    # old approach
+                    """mipTime_R_ampWalkCorrected = fitStartTime_R + (self.fitVoltageForTiming - fitStartVoltage_R)/f_ampWalkCorrected.Eval(deltaT_mcp)
                     mipTime_L_ampWalkCorrected = fitStartTime_L + (self.fitVoltageForTiming - fitStartVoltage_L)/f_ampWalkCorrected.Eval(deltaT_mcp)
                     deltaT_mcp_ampWalkCorrected = 1000*(((mipTime_R_ampWalkCorrected + mipTime_L_ampWalkCorrected)/2) - mipTime_MCP) # multiple by 1000 to transfer from ns to ps
                     #print "fitSlope_R: {0}, walkSlope: {1}".format(fitSlope_R, f_ampWalkCorrected.Eval(deltaT_mcp))
                     #print "fitSlope_L: {0}, walkSlope: {1}".format(fitSlope_L, f_ampWalkCorrected.Eval(deltaT_mcp))
                     arr.FindObject('h_allChannel_mcpRef_ampWalkCorrection').Fill( 1000*(mipTime_R - mipTime_R_ampWalkCorrected) )
                     arr.FindObject('h_allChannel_mcpRef_ampWalkCorrection').Fill( 1000*(mipTime_L - mipTime_L_ampWalkCorrected) )
+                    """
+                    
+                    # new approach
+                    deltaT_mcp_ampWalkCorrection = f_ampWalkCorrection(110) - f_ampWalkCorrection( (fitSlope_R + fitSlope_L)/2 ) # in ns
+                    arr.FindObject('h_allChannel_mcpRef_ampWalkCorrection').Fill( deltaT_mcp_ampWalkCorrection )
+                    deltaT_mcp_ampWalkCorrected = deltaT_mcp + deltaT_mcp_ampWalkCorrection # multiple by 1000 to transfer from ns to ps
                     arr.FindObject('h_allChannel_mcpRef_timingRes_ampWalkCorrected').Fill( deltaT_mcp_ampWalkCorrected )
+                    #print "deltaT_mcp: {0}, m~: {1}, correction: {2}, deltaT_mcp_corrected: {3}".format(deltaT_mcp, (fitSlope_R + fitSlope_L)/2, deltaT_mcp_ampWalkCorrection, deltaT_mcp_ampWalkCorrected)
 
                 if mipTime_R == mipTime_L and mipTime_MCP != 0 and event.amp[mcpChannel] > 80 and event.amp[mcpChannel] < 160:
                     print 'mipTime_R = {0}, mipTime_L = {1}, event: {2}'.format(mipTime_R, mipTime_L, event.i_evt)
@@ -464,8 +561,13 @@ class barClass:
         # *** 2. Then store a TGraph --> why not in same step? because it doesn't work for unknown reasons
         i=0
         g = TGraph()       
+        i_peakFit=0
+        g_peakFit = TGraph()       
         while i < 1024:
             g.SetPoint(i, l_time[i], l_channel[i])        
+            if l_channel[i] < 920:
+                g.SetPoint(i_peak, l_time[i], l_channel[i])        
+                i_peak += 1
             i=i+1
 
         fn1 = TF1("fn1", self.fitFunction) # first degree polynomial --> this is just a choice atm
@@ -548,6 +650,11 @@ class barClass:
 
                 c5.Update()
                 c5.Print( "{0}/waveformPlusPol1Fit_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
+
+                # draw graph without saturated peak
+                c5.cd()
+                g_fitPeak.Draw()
+                c5.Print( "{0}/waveformWithoutSaturation_Ch{1}_Evt{2}.png".format(self.topDir, drs_channel, i_evt) )
 
                 print 'Fit Result = {0}, Fit Slope = {1}'.format(fitRes, fitSlope)
                 print 'Lin Result = {0}'.format(slopeRes)
@@ -648,7 +755,7 @@ class barClass:
         nTotal=0
 
         for event in self.tree:        
-            if nTotal > 1000 and self.isTest:
+            if nTotal > 10000 and self.isTest:
                 break
 
             nTotal += 1
@@ -773,16 +880,33 @@ class barClass:
         self.histArray.FindObject('h_allChannel_timingLogic').Draw("TEXT")
         self.c4.Print( "{0}/h_allChannel_timingLogic.png".format(self.topDir) )
 
-        self.drawTimingResXSlices(self.c4, self.histArray, 1, usingMCP=False)
-        self.drawTimingResXSlices(self.c4, self.histArray, 1, usingMCP=True)
-        self.drawTimingResXSlices(self.c4, self.histArray, 2, usingMCP=False)
-        self.drawTimingResXSlices(self.c4, self.histArray, 2, usingMCP=True)
-        self.drawTimingResXSlices(self.c4, self.histArray, 3, usingMCP=False)
-        self.drawTimingResXSlices(self.c4, self.histArray, 3, usingMCP=True)
-        self.drawTimingResXSlices(self.c4, self.histArray, 4, usingMCP=False)
-        self.drawTimingResXSlices(self.c4, self.histArray, 4, usingMCP=True)
-        self.drawTimingResXSlices(self.c4, self.histArray, 5, usingMCP=False)
-        self.drawTimingResXSlices(self.c4, self.histArray, 5, usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='X', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='X', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='X', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='X', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='X', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='X', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='X', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='X', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='X', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='X', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='X', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='X', usingMCP=True)
+
+        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='Slope', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='Slope', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='Slope', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='Slope', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='Slope', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='Slope', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='Slope', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='Slope', usingMCP=True)
+        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='Slope', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='Slope', usingMCP=True)
+
+        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=False)
+        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=True)
+
 
         # === function graveyard. keep for reference"
         #self.drawXquadrants(self.c4, self.histArray.FindObject('h_ch1_ch2_ratio_x1, self.histArray.FindObject('h_ch1_ch2_ratio_x2, self.histArray.FindObject('h_ch1_ch2_ratio_x3, self.histArray.FindObject('h_ch1_ch2_ratio_x4, 1, 'Right/Left')
@@ -799,12 +923,13 @@ class barClass:
         if isMCPref:
             xTitle = '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP} [ps]'
             plotName = 'h_allChannel_mcpRef_timingRes'
+            xMax = -2100
+            xMin = -2500
             if isCorrected:
                 xTitle = 'Amp-Walk Corrected (t_{right SiPM} + t_{left SiPM})/2 - t_{MCP} [ps]'
                 plotName = 'h_allChannel_mcpRef_timingRes_ampWalkCorrected'
-
-            xMax = -2100
-            xMin = -2500
+                xMax = -2100
+                xMin = -2500
 
         c0.cd()
         c0.SetLeftMargin(0.15);
@@ -978,10 +1103,14 @@ class barClass:
                 h_p.Draw()
 
             elif 'MCP' in varName and opt == 'slope':
-                h_p.SetMinimum(60)
-                h_p.SetMaximum(180)
-                xMin = -2800 
-                xMax = -1800 
+                #h_p.SetMinimum(60)
+                #h_p.SetMaximum(180)
+                #xMin = -2800 
+                #xMax = -1800 
+                h_p.SetMinimum(-2500)
+                h_p.SetMaximum(-2000)
+                xMin = 60
+                xMax = 180 
                 h_p.Draw()
                 
                 h_p1 = h_p.Clone("h_p1")
@@ -1013,6 +1142,8 @@ class barClass:
                 h_p5.GetFunction('ampWalk_pol5').SetLineColor(c_pol5) 
 
                 c0.cd()
+                h_p1.SetXTitle('Fit Slope')
+                h_p1.SetYTitle('{0} [ps]'.format(varName))
                 h_p1.Draw()
                 h_p2.Draw("same")
                 h_p3.Draw("same")
@@ -1052,41 +1183,70 @@ class barClass:
 
     # =============================
 
-    def drawTimingResXSlices(self, c0, arr, barNum, usingMCP=False):
+    def drawTimingResSlices(self, c0, arr, barNum, slicedBy, usingMCP=False):
         """ function to make pretty canvas of x-slices of timing res """
         
-        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+        # ** 0. Calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
         rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
 
+        # ** 1. Histogram naming stuff
         hname = 'h_b{0}_timingRes'.format(barNum)
         if usingMCP:
             hname = 'h_b{0}_mcpRef_timingRes'.format(barNum)
-
+        if slicedBy == 'Slope':
+            hname += '_byFitSlope'
+        if barNum == 0:
+            hname = hname.replace('b0', 'allBar')
+            
         leg = TLegend(0.68, 0.68, .93, .88);
         legendCol = [1, 600, 632, 416+2, 616-3, 800+7, 432-3, 900-3] # kBlack, kBlue, kRed, kGreen+2, kMagenta-3, kOrange+7, kCyan-3, kPink-3
         nSlices = 0
-        x = -5
-        c0.cd()
+        maxVal = 0
 
-        while x < 35:
-            xLow = str(x).replace('-','n')
-            xHigh = str(x+self.xSlice).replace('-','n')
-            xBase = '{0}_to_{1}'.format(xLow, xHigh)
+        # ** 2. Set things depending on slicedBy
+        s = 0
+        sMin = 0
+        sMax = 0
+        sStep = 0
+
+        if slicedBy=='X':
+            s = -5
+            sMax = 35
+            sStep = self.xSlice
+        if slicedBy=='Slope':
+            s = 60
+            sMax = 150
+            sStep = self.slopeSlice
+
+        # ** 3. Start loop
+        c0.cd()
+        while s < sMax:
+            sLow = str(s).replace('-','n')
+            sHigh = str(s+sStep).replace('-','n')
+            sBase = '{0}_to_{1}'.format(sLow, sHigh)
+
             #h_b = TH1D('{0}_{1}'.format(hname, xBase), '{0}_{1}'.format(hname, xBase), 300, -1500, 1500)
-            h_b = arr.FindObject('{0}_{1}'.format(hname, xBase))
+            h_b = arr.FindObject('{0}_{1}'.format(hname, sBase))
             h_b.SetLineColor(legendCol[nSlices])
-            leg.AddEntry(h_b, xBase.replace('n','-').replace('_',' '), "l")
+            leg.AddEntry(h_b, sBase.replace('n','-').replace('_',' '), "l")
             if nSlices == 0:
-                h_b.GetYaxis().SetRangeUser(0, 1.4*h_b.GetBinContent(h_b.GetMaximumBin()))
-                h_b.Draw()
+                maxVal = h_b.GetBinContent(h_b.GetMaximumBin())
+                h_b.SetXTitle('t_{right SiPM} - t_{left SiPM} [ps]')
+                if usingMCP:
+                    h_b.SetXTitle('(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP} [ps]')
+                h_b.GetYaxis().SetRangeUser(0, 1.4*maxVal)
+                h_b.SetYTitle("Normalized Entries / 20 ps")
+                h_b.SetTitle("")
+                h_b.DrawNormalized()
             else:
-                h_b.Draw("same")
+                h_b.DrawNormalized("same")
 
             nSlices += 1
-            x += self.xSlice
+            s += sStep
             
         leg.Draw("same")
-        c0.Print('{0}/{1}_byXslice.png'.format(self.topDir, hname))
+        hname = hname.strip('_byFitSlope')
+        c0.Print('{0}/{1}_by{2}Slice.png'.format(self.topDir, hname, slicedBy))
 
     # =============================
 
