@@ -12,6 +12,7 @@ import sys, argparse
 # *** 0. setup parser for command line
 parser = argparse.ArgumentParser()
 parser.add_argument("--test", help="flag for running over only 10k events",  nargs='?', default=False)
+parser.add_argument("--noTiming", help="flag for running over only 10k events",  nargs='?', default=True)
 parser.add_argument("--vetoOpt", help="veto decision logic option: none/singleAdj/doubleAdj/allAdj/all")
 args = parser.parse_args()
 
@@ -31,8 +32,13 @@ if(args.test is None):
 else:
     args.test = False
 
+if(args.noTiming is None):
+    args.noTiming = False # THIS MEANS DO NOT DO TIMING ANALYSIS... logic is weird
+    print "#### --noTiming MODE : will not produce timing analysis ####"
+else:
+    args.noTiming = True
 
-topDir = '05-01-18_plots_{0}'.format(args.vetoOpt)
+topDir = '05-09-18_plots_{0}'.format(args.vetoOpt)
 
 
 # Ben Local
@@ -51,9 +57,9 @@ t1 = f1.pulse
 
 
 if(args.test):
-    barClass(t0, 'all5exposure', topDir, args.vetoOpt, True)
-    #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, True)
+    barClass(t0, 'all5exposure', topDir, args.vetoOpt, args.noTiming, True)
+    #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, args.noTiming, True)
 else:
-    barClass(t0, 'all5exposure', topDir, args.vetoOpt)
-    #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt)
-    #barClass(t2, 'topBars_66V', topDir, args.vetoOpt)
+    barClass(t0, 'all5exposure', topDir, args.vetoOpt, args.noTiming)
+    #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, args.noTiming)
+    #barClass(t2, 'topBars_66V', topDir, args.vetoOpt, args.noTiming)

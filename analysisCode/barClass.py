@@ -8,10 +8,11 @@ import os,sys, argparse
 from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex, TProfile, TF1, TGraph, TMath, TPad, TLine, TObjArray
 
 class barClass:
-    def __init__(self, tree, runType, topDir, vetoOpt, test=False):
+    def __init__(self, tree, runType, topDir, vetoOpt, doTiming=True, test=False):
         # *** 0. Top-level options and objects
         self.tree = tree
         self.topDir = topDir
+        self.doTiming = doTiming
         self.signalThreshold = 0
         self.vetoThreshold = 0
         self.xBoundaries = []
@@ -40,57 +41,13 @@ class barClass:
         self.fitPercentForTiming = 0.10
                 
         # *** 1. Define all histograms
-        h_b1 = TH2D("h_b1", "h_b1", 40, -5, 35, 35, 0, 35)
-        h_b2 = TH2D("h_b2", "h_b2", 40, -5, 35, 35, 0, 35)
-        h_b3 = TH2D("h_b3", "h_b3", 40, -5, 35, 35, 0, 35)
-        h_b4 = TH2D("h_b4", "h_b4", 40, -5, 35, 35, 0, 35)
-        h_b5 = TH2D("h_b5", "h_b5", 40, -5, 35, 35, 0, 35)
-        h_b1_t = TH2D("h_b1_t", "h_b1_t", 40, -5, 35, 35, 0, 35)
-        h_b2_t = TH2D("h_b2_t", "h_b2_t", 40, -5, 35, 35, 0, 35)
-        h_b3_t = TH2D("h_b3_t", "h_b3_t", 40, -5, 35, 35, 0, 35)
-        h_b4_t = TH2D("h_b4_t", "h_b4_t", 40, -5, 35, 35, 0, 35)
-        h_b5_t = TH2D("h_b5_t", "h_b5_t", 40, -5, 35, 35, 0, 35)
-        
-        h_mcp0_ch1 = TH1D("h_mcp0_ch1", "h_mcp0_ch1", 25, 0, 500);
-        h_mcp0_ch3 = TH1D("h_mcp0_ch3", "h_mcp0_ch3", 25, 0, 500);
-        h_mcp0_ch5 = TH1D("h_mcp0_ch5", "h_mcp0_ch5", 25, 0, 500);
-        h_mcp1_ch10 = TH1D("h_mcp1_ch10", "h_mcp1_ch10", 25, 0, 500);
-        h_mcp1_ch12 = TH1D("h_mcp1_ch12", "h_mcp1_ch12", 25, 0, 500);
-        
-        h_ch1_vs_ch2 = TH2D("h_ch1_vs_ch2", "h_ch1_vs_ch2", 22, 0, 1100, 22, 0, 1100)
-        h_ch3_vs_ch4 = TH2D("h_ch3_vs_ch4", "h_ch3_vs_ch4", 22, 0, 1100, 22, 0, 1100)
-        h_ch5_vs_ch6 = TH2D("h_ch5_vs_ch6", "h_ch5_vs_ch6", 22, 0, 1100, 22, 0, 1100)
-        h_ch10_vs_ch11 = TH2D("h_ch10_vs_ch11", "h_ch10_vs_ch11", 22, 0, 1100, 22, 0, 1100)
-        h_ch12_vs_ch13 = TH2D("h_ch12_vs_ch13", "h_ch12_vs_ch13", 22, 0, 1100, 22, 0, 1100)
-        
-        h_ch1_ch2_x_vs_ratio = TProfile("h_ch1_ch2_x_vs_ratio", "h_ch1_ch2_x_vs_ratio", 40, -5, 35, 0, 2)
-        h_ch3_ch4_x_vs_ratio = TProfile("h_ch3_ch4_x_vs_ratio", "h_ch3_ch4_x_vs_ratio", 40, -5, 35, 0, 2)
-        h_ch5_ch6_x_vs_ratio = TProfile("h_ch5_ch6_x_vs_ratio", "h_ch5_ch6_x_vs_ratio", 40, -5, 35, 0, 2)
-        h_ch10_ch11_x_vs_ratio = TProfile("h_ch10_ch11_x_vs_ratio", "h_ch10_ch11_x_vs_ratio", 40, -5, 35, 0, 2)
-        h_ch12_ch13_x_vs_ratio = TProfile("h_ch12_ch13_x_vs_ratio", "h_ch12_ch13_x_vs_ratio", 40, -5, 35, 0, 2)
-
-        h_ch1_x_vs_amp = TProfile("h_ch1_x_vs_amp", "h_ch1_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch2_x_vs_amp = TProfile("h_ch2_x_vs_amp", "h_ch2_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch3_x_vs_amp = TProfile("h_ch3_x_vs_amp", "h_ch3_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch4_x_vs_amp = TProfile("h_ch4_x_vs_amp", "h_ch4_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch5_x_vs_amp = TProfile("h_ch5_x_vs_amp", "h_ch5_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch6_x_vs_amp = TProfile("h_ch6_x_vs_amp", "h_ch6_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch10_x_vs_amp = TProfile("h_ch10_x_vs_amp", "h_ch10_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch11_x_vs_amp = TProfile("h_ch11_x_vs_amp", "h_ch11_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch12_x_vs_amp = TProfile("h_ch12_x_vs_amp", "h_ch12_x_vs_amp", 40, -5, 35, 0, 1000)
-        h_ch13_x_vs_amp = TProfile("h_ch13_x_vs_amp", "h_ch13_x_vs_amp", 40, -5, 35, 0, 1000)
-
-        h_ch1_x_vs_time = TProfile("h_ch1_x_vs_time", "h_ch1_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch2_x_vs_time = TProfile("h_ch2_x_vs_time", "h_ch2_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch3_x_vs_time = TProfile("h_ch3_x_vs_time", "h_ch3_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch4_x_vs_time = TProfile("h_ch4_x_vs_time", "h_ch4_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch5_x_vs_time = TProfile("h_ch5_x_vs_time", "h_ch5_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch6_x_vs_time = TProfile("h_ch6_x_vs_time", "h_ch6_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch10_x_vs_time = TProfile("h_ch10_x_vs_time", "h_ch10_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch11_x_vs_time = TProfile("h_ch11_x_vs_time", "h_ch11_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch12_x_vs_time = TProfile("h_ch12_x_vs_time", "h_ch12_x_vs_time", 40, -5, 35, 0, 100)
-        h_ch13_x_vs_time = TProfile("h_ch13_x_vs_time", "h_ch13_x_vs_time", 40, -5, 35, 0, 100)
-
+        # ** A. Leakage histograms and general position info of hits
+        self.histArray = self.addLeakageHistograms(self.histArray)
+        # ** B. Add profiles
+        self.histArray = self.addProfiles(self.histArray)
+        # ** C. Add x-sliced histograms
+        self.histArray = self.addSlicedHistograms(self.histArray)
+        # ** D. Add timing histograms --> need more automatic way to incorporate...
         h_allChannel_timing = TH1D("h_allChannel_timing", "h_allChannel_timing", 60, 0, 60)
         h_allChannel_fracFit_timing = TH1D("h_allChannel_fracFit_timing", "h_allChannel_fracFit_timing", 60, 0, 60)
         h_allChannel_timingLogic = TH1D("h_allChannel_timingLogic", "h_allChannel_timingLogic", 4, 0, 4)
@@ -106,59 +63,9 @@ class barClass:
         #h_allChannel_fitSlope_vs_mcpRef_timingRes = TProfile("h_allChannel_fitSlope_vs_mcpRef_timingRes", "h_allChannel_fitSlope_vs_mcpRef_timingRes", 150, -3000, -1500, 60, 180)
         h_allChannel_mcpRef_timingRes_ampWalkCorrected = TH1D("h_allChannel_mcpRef_timingRes_ampWalkCorrected", "h_allChannel_mcpRef_timingRes_ampWalkCorrected", 350, -3500, 0)
         h_allChannel_mcpRef_ampWalkCorrection = TH1D("h_allChannel_mcpRef_ampWalkCorrection", "h_allChannel_mcpRef_ampWalkCorrection", 200, -100, 100)
-
         h_allChannel_ampFit_percentError = TH1D("h_allChannel_ampFit_percentError", "h_allChannel_ampFit_percentError", 100, -50, 50)
-        
-        # *** 2. Add all histograms to array
-        self.histArray.AddLast(h_b1)
-        self.histArray.AddLast(h_b2)
-        self.histArray.AddLast(h_b3)
-        self.histArray.AddLast(h_b4)
-        self.histArray.AddLast(h_b5)
-        self.histArray.AddLast(h_b1_t)
-        self.histArray.AddLast(h_b2_t)
-        self.histArray.AddLast(h_b3_t)
-        self.histArray.AddLast(h_b4_t)
-        self.histArray.AddLast(h_b5_t)
-        self.histArray.AddLast(h_mcp0_ch1)
-        self.histArray.AddLast(h_mcp0_ch3)
-        self.histArray.AddLast(h_mcp0_ch5)
-        self.histArray.AddLast(h_mcp1_ch10)
-        self.histArray.AddLast(h_mcp1_ch12)
 
-        self.histArray.AddLast(h_ch1_vs_ch2)
-        self.histArray.AddLast(h_ch3_vs_ch4)
-        self.histArray.AddLast(h_ch5_vs_ch6)
-        self.histArray.AddLast(h_ch10_vs_ch11)
-        self.histArray.AddLast(h_ch12_vs_ch13)
-        self.histArray.AddLast(h_ch1_ch2_x_vs_ratio)
-        self.histArray.AddLast(h_ch3_ch4_x_vs_ratio)
-        self.histArray.AddLast(h_ch5_ch6_x_vs_ratio)
-        self.histArray.AddLast(h_ch10_ch11_x_vs_ratio)
-        self.histArray.AddLast(h_ch12_ch13_x_vs_ratio)
-        
-        self.histArray.AddLast(h_ch1_x_vs_amp)
-        self.histArray.AddLast(h_ch2_x_vs_amp)
-        self.histArray.AddLast(h_ch3_x_vs_amp)
-        self.histArray.AddLast(h_ch4_x_vs_amp)
-        self.histArray.AddLast(h_ch5_x_vs_amp)
-        self.histArray.AddLast(h_ch6_x_vs_amp)
-        self.histArray.AddLast(h_ch10_x_vs_amp)
-        self.histArray.AddLast(h_ch11_x_vs_amp)
-        self.histArray.AddLast(h_ch12_x_vs_amp)
-        self.histArray.AddLast(h_ch13_x_vs_amp)
-
-        self.histArray.AddLast(h_ch1_x_vs_time)
-        self.histArray.AddLast(h_ch2_x_vs_time)
-        self.histArray.AddLast(h_ch3_x_vs_time)
-        self.histArray.AddLast(h_ch4_x_vs_time)
-        self.histArray.AddLast(h_ch5_x_vs_time)
-        self.histArray.AddLast(h_ch6_x_vs_time)
-        self.histArray.AddLast(h_ch10_x_vs_time)
-        self.histArray.AddLast(h_ch11_x_vs_time)
-        self.histArray.AddLast(h_ch12_x_vs_time)
-        self.histArray.AddLast(h_ch13_x_vs_time)
-
+        # *** 2. Add non-automated histograms histograms to array
         self.histArray.AddLast(h_allChannel_timing)
         self.histArray.AddLast(h_allChannel_timingRes)
         self.histArray.AddLast(h_allChannel_timingLogic)
@@ -170,15 +77,11 @@ class barClass:
         self.histArray.AddLast(h_allChannel_mcpRef_ampWalkCorrection)
 
         self.histArray.AddLast(h_allChannel_ampFit_percentError)
-
         self.histArray.AddLast(h_allChannel_fracFit_timing)
         self.histArray.AddLast(h_allChannel_fracFit_timingRes)
         self.histArray.AddLast(h_allChannel_mcpRef_fracFit_timingRes)
 
-        # *** 3. add x-sliced histograms
-        self.histArray = self.addSlicedHistograms(self.histArray)
-
-        # *** 4. Canvases and style
+        # *** 3. Canvases and style
         self.c1 = TCanvas("c1", "c1", 800, 800)
         self.c2 = TCanvas("c2", "c2", 800, 800)
         self.c3 = TCanvas("c3", "c3", 800, 800)
@@ -186,14 +89,14 @@ class barClass:
 
         gStyle.SetOptStat(0000)
 
-        # *** 5. Make some directories if not already existent
+        # *** 4. Make some directories if not already existent
         if not os.path.isdir(self.topDir):
             os.system( 'mkdir {0}'.format(self.topDir) )
         self.topDir = '{0}/{1}'.format(topDir, runType)
         if not os.path.isdir( '{0}/{1}'.format(topDir, runType) ):
             os.system( 'mkdir {0}'.format(self.topDir) )
 
-        # *** 6. Run analysis
+        # *** 5. Run analysis
         self.loopEvents()
 
     # =============================
@@ -283,12 +186,75 @@ class barClass:
 
     # =============================
 
+    def addLeakageHistograms(self, arr):
+        """ function to add histograms sliced by x"""
+        
+        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+        #rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+
+        barNum = 0
+        while barNum < 5:
+            barNum +=1
+        
+            # ** A. Calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+            rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+
+            # ** B. General plots
+            h_b = TH2D('h_b{0}'.format(barNum), 'h_b{0}'.format(barNum), 40, -5, 35, 35, 0, 35)
+            h_b_t = TH2D('h_b{0}_t'.format(barNum), 'h_b{0}_t'.format(barNum), 40, -5, 35, 35, 0, 35)
+            h_mcp_chR = TH1D('h_mcp{0}_ch{1}'.format(timeChannel, rightSiPMchannel), 'h_mcp{0}_ch{1}'.format(timeChannel, rightSiPMchannel), 25, 0, 500)
+            h_chR_vs_chL = TH2D('h_ch{0}_vs_ch{1}'.format(rightSiPMchannel, leftSiPMchannel), 'h_ch{0}_vs_ch{1}'.format(rightSiPMchannel, leftSiPMchannel), 22, 0, 1100, 22, 0, 1100)
+            h_chR_chL_x_vs_ratio = TProfile('h_ch{0}_ch{1}_x_vs_ratio'.format(rightSiPMchannel, leftSiPMchannel), 'h_ch{0}_ch{1}_x_vs_ratio'.format(rightSiPMchannel, leftSiPMchannel), 40, -5, 35, 0, 2)
+
+            # ** C. Focused leakage studies
+            h_b_left = TH1D('h_b{0}_leftSignalInOtherBars'.format(barNum), 'h_b{0}_leftSignalInOtherBars'.format(barNum), 25, 0, 100)
+            h_b_right = TH1D('h_b{0}_rightSignalInOtherBars'.format(barNum), 'h_b{0}_rightSignalInOtherBars'.format(barNum), 25, 0, 100)
+            h_b_sum = TH1D('h_b{0}_sumSignalInOtherBars'.format(barNum), 'h_b{0}_sumSignalInOtherBars'.format(barNum), 50, 0, 200)
+            h_b_diff = TH1D('h_b{0}_diffSignalInOtherBars'.format(barNum), 'h_b{0}_diffSignalInOtherBars'.format(barNum), 50, -100, 100)
+
+            arr.AddLast(h_b)
+            arr.AddLast(h_b_t)
+            arr.AddLast(h_mcp_chR)
+            arr.AddLast(h_chR_vs_chL)
+            arr.AddLast(h_chR_chL_x_vs_ratio)
+            arr.AddLast(h_b_left)
+            arr.AddLast(h_b_right)
+            arr.AddLast(h_b_sum)
+            arr.AddLast(h_b_diff)
+
+        return arr
+
+    # =============================
+
+    def addProfiles(self, arr):
+        """ function to add histograms sliced by x"""
+        
+        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
+        #rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+
+        chNum = 0
+        while chNum < 13:
+            chNum +=1
+            # skip to 10 to produce histos only for relevant channels
+            if chNum == 7:
+                chNum = 10
+
+            h_ch_x_vs_amp  = TProfile('h_ch{0}_x_vs_amp'.format(chNum), 'h_ch{0}_x_vs_amp'.format(chNum), 40, -5, 35, 0, 1000)
+            h_ch_x_vs_time = TProfile('h_ch{0}_x_vs_time'.format(chNum), 'h_ch{0}_x_vs_time'.format(chNum), 40, -5, 35, 0, 100)
+        
+            arr.AddLast(h_ch_x_vs_amp)
+            arr.AddLast(h_ch_x_vs_time)
+
+        return arr
+
+    # =============================
+
     def setVarsByRunType(self, runType):
         """ set various constants as function of runType"""
 
         if runType == "all5exposure":
             self.signalThreshold = 800
-            self.vetoThreshold   = 100
+            self.vetoThreshold   = 75
             self.xBoundaries = [-2, 6, 15, 24, 33]
             self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
             self.yIntegralOffset = 2.5
@@ -314,6 +280,11 @@ class barClass:
         if vetoOption == 'none':
             return False
 
+        # quick veto if >1 track
+        if event.ntracks > 1:
+            return True
+        
+        # now go through complete logic
         if vetoOption == 'singleAdj':
             if barNum == 1 and event.amp[3] < self.vetoThreshold:
                 return False
@@ -410,11 +381,20 @@ class barClass:
             arr.FindObject('h_ch{0}_x_vs_amp'.format(rightSiPMchannel)).Fill(event.x_dut[2], event.amp[rightSiPMchannel] )
             arr.FindObject('h_ch{0}_x_vs_amp'.format(leftSiPMchannel)).Fill(event.x_dut[2], event.amp[leftSiPMchannel] )
 
+            # fill leakage breakdown histograms
+            arr = self.fillLeakageHistograms(arr, event, barNum)
+
             # test area for hit integral defintion
             if (abs(event.y_dut[2] - self.yBoundaries[barNum - 1]) <= self.yIntegralOffset and event.x_dut[2]>=self.xBoundaries[0] and event.x_dut[2]<=self.xBoundaries[ len(self.xBoundaries)-1 ]):
                 arr.FindObject('h_b{0}_t'.format(barNum)).Fill(event.x_dut[2], event.y_dut[2])
                     
-            # timing stuff
+            # *** 2. Timing stuff
+
+            # ** A. Break if no timing analysis requested
+            if not self.doTiming:
+                return arr
+
+            # ** B. Calculate times
             #mipTime_R, fitSlope_R, mipTime_R_ampWalkCorrected = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
             #mipTime_L, fitSlope_L, mipTime_L_ampWalkCorrected = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
             fitStartTime_R, fitStartVoltage_R, fitSlope_R, ampFitPercentErr_R, mipTime_fracFit_R = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
@@ -528,7 +508,7 @@ class barClass:
                     f_ampWalkCorrection = TF1()
                     if self.vetoOpt == 'singleAdj':
                         f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-0.004)*x*x*x + (0.357)*x*x + (-13.681)*x + (-2077.244)") # from 50k run using singleAdj veto
-                    if self.vetoOpt == 'doubleAdj':
+                    if self.vetoOpt == 'doubleAdj' or self.vetoOpt == 'allAdj' or self.vetoOpt == 'all': #FIXME --> should only be doubleAdj but need fix atm
                         #f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-2.3285)*x + (-2053.81)") # from 10k run using doubleAdj veto (using R and L independently)
                         #f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-5.5129)*x + (-1731.97)") # from 10k run using doubleAdj veto (using R+L/2 )
                         f_ampWalkCorrection = TF1("slope_ampWalkCorrected", "(-4.871)*x + (-1801.585)") # from full run using doubleAdj veto (using R+L/2 )
@@ -875,7 +855,7 @@ class barClass:
         nTotal=0
 
         for event in self.tree:        
-            if nTotal > 50000 and self.isTest:
+            if nTotal > 10000 and self.isTest:
                 break
 
             nTotal += 1
@@ -942,7 +922,6 @@ class barClass:
         
         self.c2.Print("{0}/mcp_amplitudes.png".format(self.topDir) )
 
-        
         self.drawLvsRinBar(self.c3, self.histArray.FindObject('h_ch1_vs_ch2'), 1)
         self.drawLvsRinBar(self.c3, self.histArray.FindObject('h_ch3_vs_ch4'), 2)
         self.drawLvsRinBar(self.c3, self.histArray.FindObject('h_ch5_vs_ch6'), 3)
@@ -967,88 +946,94 @@ class barClass:
         self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch12_x_vs_amp'), 5, 'Bar 5 Amplitude (Right SiPM)')
         self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch13_x_vs_amp'), 5, 'Bar 5 Amplitude (Left SiPM)')
 
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch1_x_vs_time'), 1, 'Bar 1 Time (Right SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch2_x_vs_time'), 1, 'Bar 1 Time (Left SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch3_x_vs_time'), 2, 'Bar 2 Time (Right SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch4_x_vs_time'), 2, 'Bar 2 Time (Left SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch5_x_vs_time'), 3, 'Bar 3 Time (Right SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch6_x_vs_time'), 3, 'Bar 3 Time (Left SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch10_x_vs_time'), 4, 'Bar 4 Time (Right SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch11_x_vs_time'), 4, 'Bar 4 Time (Left SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch12_x_vs_time'), 5, 'Bar 5 Time (Right SiPM)')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch13_x_vs_time'), 5, 'Bar 5 Time (Left SiPM)')
+        self.drawBarSplits(self.c2, 'h_b_rightSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_b_leftSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_b_sumSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_b_diffSignalInOtherBars')
 
-        self.c4.cd()
-        self.histArray.FindObject('h_allChannel_timing').Draw()
-        self.c4.Print( "{0}/h_allChannel_timing.png".format(self.topDir) )
+        if self.doTiming:
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch1_x_vs_time'), 1, 'Bar 1 Time (Right SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch2_x_vs_time'), 1, 'Bar 1 Time (Left SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch3_x_vs_time'), 2, 'Bar 2 Time (Right SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch4_x_vs_time'), 2, 'Bar 2 Time (Left SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch5_x_vs_time'), 3, 'Bar 3 Time (Right SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch6_x_vs_time'), 3, 'Bar 3 Time (Left SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch10_x_vs_time'), 4, 'Bar 4 Time (Right SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch11_x_vs_time'), 4, 'Bar 4 Time (Left SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch12_x_vs_time'), 5, 'Bar 5 Time (Right SiPM)')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch13_x_vs_time'), 5, 'Bar 5 Time (Left SiPM)')
+            
+            self.c4.cd()
+            self.histArray.FindObject('h_allChannel_timing').Draw()
+            self.c4.Print( "{0}/h_allChannel_timing.png".format(self.topDir) )
+            
+            self.c4.cd()
+            self.histArray.FindObject('h_allChannel_fracFit_timing').Draw()
+            self.c4.Print( "{0}/h_allChannel_fracFit_timing.png".format(self.topDir) )
+            
+            self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_timingRes'), False)
+            self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_timingRes'), True)
+            self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_timingRes_ampWalkCorrected'), True, isCorrected=True)
 
-        self.c4.cd()
-        self.histArray.FindObject('h_allChannel_fracFit_timing').Draw()
-        self.c4.Print( "{0}/h_allChannel_fracFit_timing.png".format(self.topDir) )
+            self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_fracFit_timingRes'), False, False, isFracFit=True)
+            self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_fracFit_timingRes'), True, False, isFracFit=True)
 
-        self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_timingRes'), False)
-        self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_timingRes'), True)
-        self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_timingRes_ampWalkCorrected'), True, isCorrected=True)
+            self.c4.cd()
+            self.histArray.FindObject('h_allChannel_ampFit_percentError').SetXTitle("(Fit Amp - Real Amp) / Real Amp")
+            self.histArray.FindObject('h_allChannel_ampFit_percentError').SetYTitle("Entries / 1%")
+            self.histArray.FindObject('h_allChannel_ampFit_percentError').SetTitle("")
+            f_err = TF1("f_err", "gaus", -10, 20) # gaussian
+            self.histArray.FindObject('h_allChannel_ampFit_percentError').Fit("f_err", "QR") # should be "R" to impose range
+            self.histArray.FindObject('h_allChannel_ampFit_percentError').Draw()
+            ltxE = TLatex()
+            ltxE.SetTextAlign(9)
+            ltxE.SetTextFont(62)
+            ltxE.SetTextSize(0.021)
+            ltxE.SetNDC()
+            ltxE.DrawLatex(0.75, 0.81, "Mean: {0:0.2}".format(f_err.GetParameter(1)))
+            ltxE.DrawLatex(0.75, 0.785, "Sigma: {0:0.2}".format(f_err.GetParameter(2)))
+            self.c4.Print( "{0}/h_allChannel_ampFit_percentError.png".format(self.topDir) )
+            
+            self.c4.cd()
+            self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').SetXTitle("Amp Walk Correction [ps]")
+            self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').SetYTitle("Entries / 1 ps")
+            self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').Draw()
+            self.c4.Print( "{0}/h_allChannel_mcpRef_ampWalkCorrection.png".format(self.topDir) )
+            
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_x_vs_timingRes'), 0, 't_{right SiPM} - t_{left SiPM}')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_x_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}')
+            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}', opt='slope')
+            
+            self.c4.cd()
+            self.histArray.FindObject('h_allChannel_timingLogic').Draw("TEXT")
+            self.c4.Print( "{0}/h_allChannel_timingLogic.png".format(self.topDir) )
 
-        self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_fracFit_timingRes'), False, False, isFracFit=True)
-        self.drawResolutionPlot(self.c4, self.histArray.FindObject('h_allChannel_mcpRef_fracFit_timingRes'), True, False, isFracFit=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='X', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='X', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='X', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='X', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='X', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='X', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='X', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='X', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='X', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='X', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='X', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='X', usingMCP=True)
+            
+            self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='Slope', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='Slope', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='Slope', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='Slope', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='Slope', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='Slope', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='Slope', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='Slope', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='Slope', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='Slope', usingMCP=True)
 
-        self.c4.cd()
-        self.histArray.FindObject('h_allChannel_ampFit_percentError').SetXTitle("(Fit Amp - Real Amp) / Real Amp")
-        self.histArray.FindObject('h_allChannel_ampFit_percentError').SetYTitle("Entries / 1%")
-        self.histArray.FindObject('h_allChannel_ampFit_percentError').SetTitle("")
-        f_err = TF1("f_err", "gaus", -10, 20) # gaussian
-        self.histArray.FindObject('h_allChannel_ampFit_percentError').Fit("f_err", "QR") # should be "R" to impose range
-        self.histArray.FindObject('h_allChannel_ampFit_percentError').Draw()
-        ltxE = TLatex()
-        ltxE.SetTextAlign(9)
-        ltxE.SetTextFont(62)
-        ltxE.SetTextSize(0.021)
-        ltxE.SetNDC()
-        ltxE.DrawLatex(0.75, 0.81, "Mean: {0:0.2}".format(f_err.GetParameter(1)))
-        ltxE.DrawLatex(0.75, 0.785, "Sigma: {0:0.2}".format(f_err.GetParameter(2)))
-        self.c4.Print( "{0}/h_allChannel_ampFit_percentError.png".format(self.topDir) )
-
-        self.c4.cd()
-        self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').SetXTitle("Amp Walk Correction [ps]")
-        self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').SetYTitle("Entries / 1 ps")
-        self.histArray.FindObject('h_allChannel_mcpRef_ampWalkCorrection').Draw()
-        self.c4.Print( "{0}/h_allChannel_mcpRef_ampWalkCorrection.png".format(self.topDir) )
-        
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_x_vs_timingRes'), 0, 't_{right SiPM} - t_{left SiPM}')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_x_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}')
-        self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}', opt='slope')
-
-        self.c4.cd()
-        self.histArray.FindObject('h_allChannel_timingLogic').Draw("TEXT")
-        self.c4.Print( "{0}/h_allChannel_timingLogic.png".format(self.topDir) )
-
-        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='X', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='X', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='X', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='X', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='X', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='X', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='X', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='X', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='X', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='X', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='X', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='X', usingMCP=True)
-
-        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='Slope', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 1, slicedBy='Slope', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='Slope', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 2, slicedBy='Slope', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='Slope', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 3, slicedBy='Slope', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='Slope', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 4, slicedBy='Slope', usingMCP=True)
-        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='Slope', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 5, slicedBy='Slope', usingMCP=True)
-
-        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=False)
-        self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=True)
+            self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=False)
+            self.drawTimingResSlices(self.c4, self.histArray, 0, slicedBy='Slope', usingMCP=True)
 
         # === function graveyard. keep for reference"
         #self.drawXquadrants(self.c4, self.histArray.FindObject('h_ch1_ch2_ratio_x1, self.histArray.FindObject('h_ch1_ch2_ratio_x2, self.histArray.FindObject('h_ch1_ch2_ratio_x3, self.histArray.FindObject('h_ch1_ch2_ratio_x4, 1, 'Right/Left')
@@ -1438,5 +1423,90 @@ class barClass:
         fitSlope = (f2 - f1)/(x_eval - x_start)
 
         return x_eval, fitSlope
-
+    
     # =============================
+
+    def fillLeakageHistograms(self, arr, event, barNum):
+        """ function to fill histograms breaking down information about leakage"""
+        
+        if barNum != 1:
+            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[1])
+            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[2])
+            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[1] + event.amp[2])
+            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[1] - event.amp[2])
+        if barNum != 2:
+            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[3])
+            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[4])
+            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[3] + event.amp[4])
+            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[3] - event.amp[4])
+        if barNum != 3:
+            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[5])
+            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[6])
+            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[5] + event.amp[6])
+            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[5] - event.amp[6])
+        if barNum != 4:
+            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[10])
+            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[11])
+            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[10] + event.amp[11])
+            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[10] - event.amp[11])
+        if barNum != 5:
+            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[12])
+            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[13])
+            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[12] + event.amp[13])
+            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[12] - event.amp[13])
+            
+        return arr
+        
+    # =============================
+
+    def drawBarSplits(self, c0, hname):
+        """ function to produce multi-color histogram split by bar """
+        
+        c0.cd()
+        c0.SetLeftMargin(0.15);
+        c0.SetRightMargin(0.05);
+        c0.SetBottomMargin(0.10);
+        c0.SetTopMargin(0.05);
+
+        h1 = self.histArray.FindObject(hname.replace('_b_', '_b1_'))
+        h2 = self.histArray.FindObject(hname.replace('_b_', '_b2_'))        
+        h3 = self.histArray.FindObject(hname.replace('_b_', '_b3_'))
+        h4 = self.histArray.FindObject(hname.replace('_b_', '_b4_'))        
+        h5 = self.histArray.FindObject(hname.replace('_b_', '_b5_'))
+        
+        # kBlack == 1, kRed == 632, kBlue == 600, kGreen == 416, kMagenta == 616
+        h1.SetLineColor(1) # kBlack
+        h2.SetLineColor(600) # kBlue
+        h3.SetLineColor(632) # kRed
+        h4.SetLineColor(416+2) # kGreen+2
+        h5.SetLineColor(616-3) # kMagenta-3
+        
+        h1.SetLineWidth(3) 
+        h2.SetLineWidth(3) 
+        h3.SetLineWidth(3) 
+        h4.SetLineWidth(3) 
+        h5.SetLineWidth(3) 
+        
+        h1.SetYTitle("Noramlized Entries / 4 mV")
+        h1.SetXTitle("Leakage Amplitude [mV]")
+        h1.SetTitle("")
+        h1.DrawNormalized()
+        #h5.GetYaxis().SetRangeUser(0,1.6)
+        
+        h2.DrawNormalized("same")
+        h3.DrawNormalized("same")
+        h4.DrawNormalized("same")
+        h5.DrawNormalized("same")
+        
+        leg = TLegend(0.5, 0.4, .85, .7);
+        leg.AddEntry(h1, "Bar 1 Signal", "l");
+        leg.AddEntry(h2, "Bar 2 Signal", "l");
+        leg.AddEntry(h3, "Bar 3 Signal", "l");
+        leg.AddEntry(h4, "Bar 4 Signal", "l");
+        leg.AddEntry(h5, "Bar 5 Signal", "l");
+        leg.Draw("same");
+        
+        c0.Print("{0}/{1}.png".format(self.topDir, hname.replace('_b_', '_byBar_') ))
+    
+    # =============================
+    
