@@ -4,11 +4,11 @@
 #Date: April 16, 2018
 #Purpose: Class for handling testbeam bar data
 
-import os,sys, argparse
+import os,sys, argparse, ROOT
 from ROOT import gROOT, TH1D, TFile, TTree, TChain, TCanvas, TH2D, TLegend, gStyle, TLatex, TProfile, TF1, TGraph, TMath, TPad, TLine, TObjArray
 
 class barClass:
-    def __init__(self, tree, runType, topDir, vetoOpt, doTiming=True, test=False):
+    def __init__(self, tree, runType, topDir, vetoOpt, doTiming=True, test=False, batch=False):
         # *** 0. Top-level options and objects
         self.tree = tree
         self.topDir = topDir
@@ -22,6 +22,7 @@ class barClass:
         self.runType = runType
         self.vetoOpt = vetoOpt
         self.isTest = test
+        self.runBatch = batch
         self.fitVoltageThreshold = 30 # in mV
         self.fitVoltageForTiming = 50 # in mV #100 gave 150 ps
         self.fitMCPVoltageThreshold = 20 # in mV
@@ -82,6 +83,9 @@ class barClass:
         self.histArray.AddLast(h_allChannel_mcpRef_fracFit_timingRes)
 
         # *** 3. Canvases and style
+        if self.runBatch:
+            ROOT.gROOT.SetBatch(True)
+            
         self.c1 = TCanvas("c1", "c1", 800, 800)
         self.c2 = TCanvas("c2", "c2", 800, 800)
         self.c3 = TCanvas("c3", "c3", 800, 800)
@@ -95,7 +99,7 @@ class barClass:
         self.topDir = '{0}/{1}'.format(topDir, runType)
         if not os.path.isdir( '{0}/{1}'.format(topDir, runType) ):
             os.system( 'mkdir {0}'.format(self.topDir) )
-
+  
         # *** 5. Run analysis
         self.loopEvents()
 
@@ -207,10 +211,15 @@ class barClass:
             h_chR_chL_x_vs_ratio = TProfile('h_ch{0}_ch{1}_x_vs_ratio'.format(rightSiPMchannel, leftSiPMchannel), 'h_ch{0}_ch{1}_x_vs_ratio'.format(rightSiPMchannel, leftSiPMchannel), 40, -5, 35, 0, 2)
 
             # ** C. Focused leakage studies
-            h_b_left = TH1D('h_b{0}_leftSignalInOtherBars'.format(barNum), 'h_b{0}_leftSignalInOtherBars'.format(barNum), 25, 0, 100)
-            h_b_right = TH1D('h_b{0}_rightSignalInOtherBars'.format(barNum), 'h_b{0}_rightSignalInOtherBars'.format(barNum), 25, 0, 100)
-            h_b_sum = TH1D('h_b{0}_sumSignalInOtherBars'.format(barNum), 'h_b{0}_sumSignalInOtherBars'.format(barNum), 50, 0, 200)
-            h_b_diff = TH1D('h_b{0}_diffSignalInOtherBars'.format(barNum), 'h_b{0}_diffSignalInOtherBars'.format(barNum), 50, -100, 100)
+            h_b_left = TH1D('h_trackIn_b{0}_leftSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_leftSignalInOtherBars'.format(barNum), 25, 0, 100)
+            h_b_right = TH1D('h_trackIn_b{0}_rightSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_rightSignalInOtherBars'.format(barNum), 25, 0, 100)
+            h_b_sum = TH1D('h_trackIn_b{0}_sumSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_sumSignalInOtherBars'.format(barNum), 50, 0, 200)
+            h_b_diff = TH1D('h_trackIn_b{0}_diffSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_diffSignalInOtherBars'.format(barNum), 50, -100, 100)
+
+            h_b_left_out = TH1D('h_trackOut_b{0}_leftSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_leftSignalInOtherBars'.format(barNum), 25, 0, 100)
+            h_b_right_out = TH1D('h_trackOut_b{0}_rightSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_rightSignalInOtherBars'.format(barNum), 25, 0, 100)
+            h_b_sum_out = TH1D('h_trackOut_b{0}_sumSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_sumSignalInOtherBars'.format(barNum), 50, 0, 200)
+            h_b_diff_out = TH1D('h_trackOut_b{0}_diffSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_diffSignalInOtherBars'.format(barNum), 50, -100, 100)
 
             arr.AddLast(h_b)
             arr.AddLast(h_b_t)
@@ -221,6 +230,10 @@ class barClass:
             arr.AddLast(h_b_right)
             arr.AddLast(h_b_sum)
             arr.AddLast(h_b_diff)
+            arr.AddLast(h_b_left_out)
+            arr.AddLast(h_b_right_out)
+            arr.AddLast(h_b_sum_out)
+            arr.AddLast(h_b_diff_out)
 
         return arr
 
@@ -254,7 +267,7 @@ class barClass:
 
         if runType == "all5exposure":
             self.signalThreshold = 800
-            self.vetoThreshold   = 75
+            self.vetoThreshold   = 100
             self.xBoundaries = [-2, 6, 15, 24, 33]
             self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
             self.yIntegralOffset = 2.5
@@ -363,6 +376,35 @@ class barClass:
 
     # =============================
 
+    def inBarZone(self, track_x, track_y, barNum):
+        """ function to return boolean whether hit inside fill bar-specific plots"""
+        
+        if (abs(track_y - self.yBoundaries[barNum - 1]) <= self.yIntegralOffset) and (track_x >= self.xBoundaries[0]) and (track_x <= self.xBoundaries[ len(self.xBoundaries)-1 ]):
+            return True
+        else:
+            return False
+
+    # =============================
+
+    def inWhichBar(self, track_x, track_y):
+        """ function to return boolean whether hit inside fill bar-specific plots"""
+        
+        if self.inBarZone(track_x, track_y, 1):
+            return 1
+        elif self.inBarZone(track_x, track_y, 2):
+            return 2
+        elif self.inBarZone(track_x, track_y, 3):
+            return 3
+        elif self.inBarZone(track_x, track_y, 4):
+            return 4
+        elif self.inBarZone(track_x, track_y, 5):
+            return 5
+
+        # if gets here, means hit was not in any bar zone.... weird but okay
+        return 0
+
+    # =============================
+
     def fillChannelPlots(self, event, barNum, arr):
         """ function to fill bar-specific plots"""
         
@@ -372,7 +414,7 @@ class barClass:
         # logic to see if event should be vetoed based on signals in other bars
         doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt) # vetoOpt = none, singleAdj, doubleAdj, allAdj, all
 
-        if (event.amp[rightSiPMchannel] > self.signalThreshold and event.amp[leftSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004):
+        if (event.amp[rightSiPMchannel] > self.signalThreshold and event.amp[leftSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004) and event.ntracks == 1:
             # leakage histograms and profiles
             arr.FindObject('h_b{0}'.format(barNum)).Fill(event.x_dut[2], event.y_dut[2])
             arr.FindObject('h_mcp{0}_ch{1}'.format(timeChannel, rightSiPMchannel)).Fill( event.amp[mcpChannel] )
@@ -381,15 +423,23 @@ class barClass:
             arr.FindObject('h_ch{0}_x_vs_amp'.format(rightSiPMchannel)).Fill(event.x_dut[2], event.amp[rightSiPMchannel] )
             arr.FindObject('h_ch{0}_x_vs_amp'.format(leftSiPMchannel)).Fill(event.x_dut[2], event.amp[leftSiPMchannel] )
 
-            # fill leakage breakdown histograms
-            arr = self.fillLeakageHistograms(arr, event, barNum)
-
+            trackInBar = self.inBarZone(event.x_dut[2], event.y_dut[2], barNum)
             # test area for hit integral defintion
-            if (abs(event.y_dut[2] - self.yBoundaries[barNum - 1]) <= self.yIntegralOffset and event.x_dut[2]>=self.xBoundaries[0] and event.x_dut[2]<=self.xBoundaries[ len(self.xBoundaries)-1 ]):
+            if trackInBar:
                 arr.FindObject('h_b{0}_t'.format(barNum)).Fill(event.x_dut[2], event.y_dut[2])
-                    
-            # *** 2. Timing stuff
 
+            # fill leakage breakdown histograms
+            if trackInBar:
+                arr = self.fillLeakageHistograms(arr, event, barNum, 'trackIn')
+            else:
+                arr = self.fillLeakageHistograms(arr, event, barNum, 'trackOut')
+                # fill trace histogram with signal bar waveforms and waveforms from bar with track
+                trackBar = self.inWhichBar(event.x_dut[2], event.y_dut[2])
+                if trackBar != 0:
+                    rightSiPMchannel_track, leftSiPMchannel_track, mcpChannel_track, timeChannel_track = self.returnChannelNumbers(trackBar)
+                    self.drawFourChannelTrace(event.time, event.channel, rightSiPMchannel, leftSiPMchannel, timeChannel, rightSiPMchannel_track, leftSiPMchannel_track, timeChannel_track, event.i_evt)
+
+            # *** 2. Timing stuff
             # ** A. Break if no timing analysis requested
             if not self.doTiming:
                 return arr
@@ -557,28 +607,17 @@ class barClass:
         i = 0
         l_time = []
         l_channel = []
+
         # *** 1. Make arrays of trace information
         while i < 1024:
             l_time.append(time[drs_time*1024 + i])
             l_channel.append(-1*channel[drs_channel*1024 + i])
             i+=1            
 
+        
         # *** 2. Then store a TGraph --> why not in same step? because it doesn't work for unknown reasons
-        i=0
-        g = TGraph()       
-        i_peakFit=0
-        g_peakFit = TGraph()       
-        voltageVeto = self.peakFitVoltageVeto
-        if '66V' in self.runType:
-            voltageVeto = 0.875*max(l_channel)
-
-        while i < 1024:
-            g.SetPoint(i, l_time[i], l_channel[i])        
-            if l_channel[i] < voltageVeto:
-                g_peakFit.SetPoint(i_peakFit, l_time[i], l_channel[i])        
-                i_peakFit += 1
-            i=i+1
-
+        g, g_peakFit = self.returnWaveformGraph(time, channel, drs_time, drs_channel, vetoClipping=True)
+        
         # *** 3. Set up fitting function
         fn1 = TF1("fn1", self.fitFunction) # get function from user config
         startFit = self.getWaveformInfo_TOFPET(l_time, l_channel)
@@ -946,10 +985,14 @@ class barClass:
         self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch12_x_vs_amp'), 5, 'Bar 5 Amplitude (Right SiPM)')
         self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch13_x_vs_amp'), 5, 'Bar 5 Amplitude (Left SiPM)')
 
-        self.drawBarSplits(self.c2, 'h_b_rightSignalInOtherBars')
-        self.drawBarSplits(self.c2, 'h_b_leftSignalInOtherBars')
-        self.drawBarSplits(self.c2, 'h_b_sumSignalInOtherBars')
-        self.drawBarSplits(self.c2, 'h_b_diffSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackIn_b_rightSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackIn_b_leftSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackIn_b_sumSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackIn_b_diffSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackOut_b_rightSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackOut_b_leftSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackOut_b_sumSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackOut_b_diffSignalInOtherBars')
 
         if self.doTiming:
             self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch1_x_vs_time'), 1, 'Bar 1 Time (Right SiPM)')
@@ -1426,35 +1469,98 @@ class barClass:
     
     # =============================
 
-    def fillLeakageHistograms(self, arr, event, barNum):
+    def drawTwoChannelTrace(self, time, channel, ch1, ch2, chTime, i_evt, altColor=False):
+        """ function to draw 2-channel traces --> probably just for leakage studies"""
+
+        c0 = TCanvas("c0", "c0", 800, 800)
+        c0.cd()
+        c0.SetLeftMargin(0.15);
+        c0.SetRightMargin(0.05);
+        c0.SetBottomMargin(0.10);
+        c0.SetTopMargin(0.05);
+        
+        g1 = self.returnWaveformGraph(time, channel, chTime, ch1)
+        g2 = self.returnWaveformGraph(time, channel, chTime, ch2)
+        g1.SetLineColor(600) #kBlue
+        g2.SetLineColor(632) #kRed
+
+        c0.cd()
+        g1.Draw()
+        g2.Draw("same")
+        c0.Print( "{0}/trackOutWaveforms/waveformTrackOut_ch{1}_ch{2}_Evt{3}.png".format(self.topDir, ch1, ch2, i_evt) )
+
+    # =============================
+
+    def drawFourChannelTrace(self, time, channel, ch1, ch2, chTime, chA, chB, chTime2, i_evt):
+        """ function to draw 2-channel traces --> probably just for leakage studies"""
+
+        c0 = TCanvas("c0", "c0", 800, 800)
+        c0.cd()
+        c0.SetLeftMargin(0.15);
+        c0.SetRightMargin(0.05);
+        c0.SetBottomMargin(0.10);
+        c0.SetTopMargin(0.05);
+        
+        g1 = self.returnWaveformGraph(time, channel, chTime, ch1)
+        g2 = self.returnWaveformGraph(time, channel, chTime, ch2)
+        gA = self.returnWaveformGraph(time, channel, chTime2, chA)
+        gB = self.returnWaveformGraph(time, channel, chTime2, chB)
+        g1.SetLineColor(1) #kBlack
+        g2.SetLineColor(416+2) #kGreen+2
+        gA.SetLineColor(600) #kBlue
+        gB.SetLineColor(632) #kRed
+
+        c0.cd()
+        g1.Draw()
+        g2.Draw("same")
+        gA.Draw("same")
+        gB.Draw("same")
+        c0.Print( "{0}/trackOutWaveforms/waveformTrackOut_sig_ch{1}_ch{2}_track_ch{3}_ch{4}_Evt{5}.png".format(self.topDir, ch1, ch2, chA, chB, i_evt) )
+
+    # =============================
+
+    def fillLeakageHistograms(self, arr, event, barNum, trackIn):
         """ function to fill histograms breaking down information about leakage"""
         
+        if not os.path.isdir( '{0}/trackOutWaveforms'.format(self.topDir) ):
+            os.system( 'mkdir {0}/trackOutWaveforms'.format(self.topDir) )
+  
         if barNum != 1:
-            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[1])
-            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[2])
-            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[1] + event.amp[2])
-            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[1] - event.amp[2])
+            arr.FindObject('h_{0}_b{1}_rightSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[1])
+            arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[2])
+            arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[1] + event.amp[2])
+            arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[1] - event.amp[2])
+            #if event.i_evt % 500 == 0:
+            #self.drawTwoChannelTrace(event.time, event.channel, 1, 2, 0, event.i_evt)
         if barNum != 2:
-            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[3])
-            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[4])
-            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[3] + event.amp[4])
-            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[3] - event.amp[4])
+            arr.FindObject('h_{0}_b{1}_rightSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[3])
+            arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[4])
+            arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[3] + event.amp[4])
+            arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[3] - event.amp[4])
+            #if event.i_evt % 500 == 0:
+            #self.drawTwoChannelTrace(event.time, event.channel, 3, 4, 0, event.i_evt)
         if barNum != 3:
-            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[5])
-            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[6])
-            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[5] + event.amp[6])
-            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[5] - event.amp[6])
+            arr.FindObject('h_{0}_b{1}_rightSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[5])
+            arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[6])
+            arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[5] + event.amp[6])
+            arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[5] - event.amp[6])
+            #if event.i_evt % 500 == 0:
+            #self.drawTwoChannelTrace(event.time, event.channel, 5, 6, 0, event.i_evt)
         if barNum != 4:
-            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[10])
-            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[11])
-            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[10] + event.amp[11])
-            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[10] - event.amp[11])
+            arr.FindObject('h_{0}_b{1}_rightSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[10])
+            arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[11])
+            arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[10] + event.amp[11])
+            arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[10] - event.amp[11])
+            #if event.i_evt % 500 == 0:
+            #self.drawTwoChannelTrace(event.time, event.channel, 10, 11, 1, event.i_evt)
         if barNum != 5:
-            arr.FindObject('h_b{0}_rightSignalInOtherBars'.format(barNum)).Fill(event.amp[12])
-            arr.FindObject('h_b{0}_leftSignalInOtherBars'.format(barNum)).Fill(event.amp[13])
-            arr.FindObject('h_b{0}_sumSignalInOtherBars'.format(barNum)).Fill(event.amp[12] + event.amp[13])
-            arr.FindObject('h_b{0}_diffSignalInOtherBars'.format(barNum)).Fill(event.amp[12] - event.amp[13])
-            
+            arr.FindObject('h_{0}_b{1}_rightSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[12])
+            arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[13])
+            arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[12] + event.amp[13])
+            arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[12] - event.amp[13])
+            #if event.i_evt % 500 == 0:
+            #self.drawTwoChannelTrace(event.time, event.channel, 12, 13, 1, event.i_evt)
+
         return arr
         
     # =============================
@@ -1491,14 +1597,14 @@ class barClass:
         h1.SetXTitle("Leakage Amplitude [mV]")
         h1.SetTitle("")
         h1.DrawNormalized()
-        #h5.GetYaxis().SetRangeUser(0,1.6)
+        h1.GetYaxis().SetRangeUser(0,2.6)
         
         h2.DrawNormalized("same")
         h3.DrawNormalized("same")
         h4.DrawNormalized("same")
         h5.DrawNormalized("same")
         
-        leg = TLegend(0.5, 0.4, .85, .7);
+        leg = TLegend(0.58, 0.63, .93, .93);
         leg.AddEntry(h1, "Bar 1 Signal", "l");
         leg.AddEntry(h2, "Bar 2 Signal", "l");
         leg.AddEntry(h3, "Bar 3 Signal", "l");
@@ -1508,5 +1614,42 @@ class barClass:
         
         c0.Print("{0}/{1}.png".format(self.topDir, hname.replace('_b_', '_byBar_') ))
     
+    # =============================
+
+    def returnWaveformGraph(self, time, channel, drs_time, drs_channel, vetoClipping=False):
+        """ function to produce and return graph of waveform """
+
+        l_time = []
+        l_channel = []
+        i=0
+
+        # *** 1. Make arrays of trace information
+        while i < 1024:
+            l_time.append(time[drs_time*1024 + i])
+            l_channel.append(-1*channel[drs_channel*1024 + i])
+            i+=1            
+        
+        # *** 2. Then store a TGraph --> why not in same step? because it doesn't work for unknown reasons
+        i=0
+        g = TGraph()       
+        i_peakFit=0
+        g_peakFit = TGraph()       
+        voltageVeto = self.peakFitVoltageVeto
+        if '66V' in self.runType:
+            voltageVeto = 0.875*max(l_channel)
+
+        while i < 1024:
+            g.SetPoint(i, l_time[i], l_channel[i])        
+            if l_channel[i] < voltageVeto:
+                g_peakFit.SetPoint(i_peakFit, l_time[i], l_channel[i])        
+                i_peakFit += 1
+            i=i+1
+
+        
+        if not vetoClipping:
+            return g
+        else:
+            return g, g_peakFit
+        
     # =============================
     
