@@ -242,21 +242,32 @@ class barClass:
     def addProfiles(self, arr):
         """ function to add histograms sliced by x"""
         
-        # calculate channel numbers given bar number --> there is probably a smarter way to automate this with fewer lines
-        #rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+        barNum = 0
+        while barNum < 5:
+            barNum +=1
+            rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
 
-        chNum = 0
-        while chNum < 13:
-            chNum +=1
-            # skip to 10 to produce histos only for relevant channels
-            if chNum == 7:
-                chNum = 10
+            h_chR_x_vs_amp  = TProfile('h_ch{0}_x_vs_amp'.format(rightSiPMchannel), 'h_ch{0}_x_vs_amp'.format(rightSiPMchannel), 40, -5, 35, 0, 1000)
+            h_chR_x_vs_time = TProfile('h_ch{0}_x_vs_time'.format(rightSiPMchannel), 'h_ch{0}_x_vs_time'.format(rightSiPMchannel), 40, -5, 35, 35, 45)
+            h_chR_minusMCP_x_vs_time = TProfile('h_ch{0}_minusMCP_x_vs_time'.format(rightSiPMchannel), 'h_ch{0}_minusMCP_x_vs_time'.format(rightSiPMchannel), 40, -5, 35, 35, 45)
+            h_chL_x_vs_amp  = TProfile('h_ch{0}_x_vs_amp'.format(leftSiPMchannel), 'h_ch{0}_x_vs_amp'.format(leftSiPMchannel), 40, -5, 35, 0, 1000)
+            h_chL_x_vs_time = TProfile('h_ch{0}_x_vs_time'.format(leftSiPMchannel), 'h_ch{0}_x_vs_time'.format(leftSiPMchannel), 40, -5, 35, 35, 45)
+            h_chL_minusMCP_x_vs_time = TProfile('h_ch{0}_minusMCP_x_vs_time'.format(leftSiPMchannel), 'h_ch{0}_minusMCP_x_vs_time'.format(leftSiPMchannel), 40, -5, 35, 35, 45)
 
-            h_ch_x_vs_amp  = TProfile('h_ch{0}_x_vs_amp'.format(chNum), 'h_ch{0}_x_vs_amp'.format(chNum), 40, -5, 35, 0, 1000)
-            h_ch_x_vs_time = TProfile('h_ch{0}_x_vs_time'.format(chNum), 'h_ch{0}_x_vs_time'.format(chNum), 40, -5, 35, 0, 100)
+            h_chR_diffRL_vs_time = TProfile('h_ch{0}_diffRL_vs_time'.format(rightSiPMchannel), 'h_ch{0}_diffRL_vs_time'.format(rightSiPMchannel), 60, -1, 1, 35, 45)
+            h_chL_diffRL_vs_time = TProfile('h_ch{0}_diffRL_vs_time'.format(leftSiPMchannel), 'h_ch{0}_diffRL_vs_time'.format(leftSiPMchannel), 60, -1, 1, 35, 45)
+            h_chR_chL_over2_diffRL_vs_time = TProfile('h_ch{0}_ch{1}_over2_diffRL_vs_time'.format(rightSiPMchannel, leftSiPMchannel), 'h_ch{0}_ch{1}_over2_diffRL_vs_time'.format(rightSiPMchannel, leftSiPMchannel), 60, -1, 1, 35, 45)
         
-            arr.AddLast(h_ch_x_vs_amp)
-            arr.AddLast(h_ch_x_vs_time)
+            arr.AddLast(h_chR_x_vs_amp)
+            arr.AddLast(h_chR_x_vs_time)
+            arr.AddLast(h_chR_minusMCP_x_vs_time)
+            arr.AddLast(h_chL_x_vs_amp)
+            arr.AddLast(h_chL_x_vs_time)
+            arr.AddLast(h_chL_minusMCP_x_vs_time)
+
+            arr.AddLast(h_chR_diffRL_vs_time)
+            arr.AddLast(h_chL_diffRL_vs_time)
+            arr.AddLast(h_chR_chL_over2_diffRL_vs_time)
 
         return arr
 
@@ -266,7 +277,7 @@ class barClass:
         """ set various constants as function of runType"""
 
         if runType == "all5exposure":
-            self.signalThreshold = 800
+            self.signalThreshold = 800 # should be 800 (using 100 for CERN testbeam comparison)
             self.vetoThreshold   = 100
             self.xBoundaries = [-2, 6, 15, 24, 33]
             self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
@@ -437,7 +448,8 @@ class barClass:
                 trackBar = self.inWhichBar(event.x_dut[2], event.y_dut[2])
                 if trackBar != 0:
                     rightSiPMchannel_track, leftSiPMchannel_track, mcpChannel_track, timeChannel_track = self.returnChannelNumbers(trackBar)
-                    self.drawFourChannelTrace(event.time, event.channel, rightSiPMchannel, leftSiPMchannel, timeChannel, rightSiPMchannel_track, leftSiPMchannel_track, timeChannel_track, event.i_evt)
+                    if event.i_evt % 10 == 0:
+                        self.drawFourChannelTrace(event.time, event.channel, rightSiPMchannel, leftSiPMchannel, timeChannel, rightSiPMchannel_track, leftSiPMchannel_track, timeChannel_track, event.i_evt) #MIXME --> uncomment for leakage studies
 
             # *** 2. Timing stuff
             # ** A. Break if no timing analysis requested
@@ -464,6 +476,11 @@ class barClass:
             if mipTime_R != 0 and mipTime_L != 0:
                 arr.FindObject('h_ch{0}_x_vs_time'.format(rightSiPMchannel)).Fill(event.x_dut[2], mipTime_R)
                 arr.FindObject('h_ch{0}_x_vs_time'.format(leftSiPMchannel)).Fill(event.x_dut[2], mipTime_L)
+
+                arr.FindObject('h_ch{0}_diffRL_vs_time'.format(rightSiPMchannel)).Fill((mipTime_R - mipTime_L), mipTime_R )
+                arr.FindObject('h_ch{0}_diffRL_vs_time'.format(leftSiPMchannel)).Fill((mipTime_R - mipTime_L), mipTime_L )
+                arr.FindObject('h_ch{0}_ch{1}_over2_diffRL_vs_time'.format(rightSiPMchannel, leftSiPMchannel)).Fill((mipTime_R - mipTime_L), (mipTime_L + mipTime_R)/2 )
+                
                 arr.FindObject('h_allChannel_timingLogic').Fill("Both",1)
                 arr.FindObject('h_allChannel_ampFit_percentError').Fill(100*ampFitPercentErr_L)
                 arr.FindObject('h_allChannel_ampFit_percentError').Fill(100*ampFitPercentErr_R)
@@ -523,6 +540,8 @@ class barClass:
                     #arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill(fitSlope_L, deltaT_mcp)
                     arr.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes').Fill( (fitSlope_L+fitSlope_R)/2, deltaT_mcp)
                     
+                    arr.FindObject('h_ch{0}_minusMCP_x_vs_time'.format(rightSiPMchannel)).Fill(event.x_dut[2], mipTime_R - mipTime_MCP)
+                    arr.FindObject('h_ch{0}_minusMCP_x_vs_time'.format(leftSiPMchannel)).Fill(event.x_dut[2], mipTime_L - mipTime_MCP)
 
                     # *** fill x-slice plots w/ mcp data
                     x = -5
@@ -670,26 +689,27 @@ class barClass:
                 print "only one step, evt {0}, startFit: ({1:0.3f}, {2:0.3f}), fitted: ({3:0.3f}, {4:0.3f})".format(i_evt, evalFit, fitVoltage, fitRes, fnR.Eval(fitRes))
 
             # ** D. START CONST FRAC FIT
-            startFit_constFrac = self.getWaveformInfo_constFrac(l_time, l_channel, peakAmp)
-            fnFrac = TF1("fnFrac", self.fitFunction) # get function from user config
-            fnFrac.SetRange(l_time[startFit_constFrac], l_time[startFit_constFrac + timeWindow])
-            g.Fit("fnFrac", "QR")
-            fnFrac = g.GetFunction("fnFrac")
-            # * i. Numerical solution for timing info
-            fitStop = self.fitPercentForTiming
-            timeStep = l_time[startFit_constFrac] # timestamp to start at (use startFit cuz... duh)
+            if peakAmp != 0: # protection against no peak found
+                startFit_constFrac = self.getWaveformInfo_constFrac(l_time, l_channel, peakAmp)
+                fnFrac = TF1("fnFrac", self.fitFunction) # get function from user config
+                fnFrac.SetRange(l_time[startFit_constFrac], l_time[startFit_constFrac + timeWindow])
+                g.Fit("fnFrac", "QR")
+                fnFrac = g.GetFunction("fnFrac")
+                # * i. Numerical solution for timing info
+                fitStop = self.fitPercentForTiming
+                timeStep = l_time[startFit_constFrac] # timestamp to start at (use startFit cuz... duh)
+                
+                # * ii. Get appropriate starting point
+                if fnFrac.Eval(timeStep)/peakAmp > self.fitPercentThreshold: # sometimes we need to push back start when first point of fit is waay beyond fitPercentThreshold due to steep risetime
+                    while fnFrac.Eval(timeStep)/peakAmp > self.fitPercentThreshold: 
+                        timeStep = timeStep - 0.001 
+                        if timeStep < 0:
+                            break
+                evalFracFit = timeStep
 
-            # * ii. Get appropriate starting point
-            if fnFrac.Eval(timeStep)/peakAmp > self.fitPercentThreshold: # sometimes we need to push back start when first point of fit is waay beyond fitPercentThreshold due to steep risetime
-                while fnFrac.Eval(timeStep)/peakAmp > self.fitPercentThreshold: 
-                    timeStep = timeStep - 0.001 
-                    if timeStep < 0:
-                        break
-            evalFracFit = timeStep
-
-            # * iii. Get numerical solution
-            fracStop = self.fitPercentForTiming
-            fracFitRes, fracFitSlope = self.numericalFracSolve(fnFrac, evalFracFit, 0.001, peakAmp, self.fitPercentForTiming)
+                # * iii. Get numerical solution
+                fracStop = self.fitPercentForTiming
+                fracFitRes, fracFitSlope = self.numericalFracSolve(fnFrac, evalFracFit, 0.001, peakAmp, self.fitPercentForTiming)
 
         if fitRes <= evalFit or fitRes >= evalFit + 35: # something wonky --> not good
             return 0, 0, 0, 0, 0
@@ -894,7 +914,7 @@ class barClass:
         nTotal=0
 
         for event in self.tree:        
-            if nTotal > 10000 and self.isTest:
+            if nTotal > 50000 and self.isTest:
                 break
 
             nTotal += 1
@@ -923,10 +943,10 @@ class barClass:
         self.draw2Dbar(self.c1, self.histArray.FindObject('h_b5_t'), 5, "test")
         
         self.c2.cd()
-        self.c2.SetLeftMargin(0.15);
-        self.c2.SetRightMargin(0.05);
-        self.c2.SetBottomMargin(0.10);
-        self.c2.SetTopMargin(0.05);
+        self.c2.SetLeftMargin(0.15)
+        self.c2.SetRightMargin(0.05)
+        self.c2.SetBottomMargin(0.10)
+        self.c2.SetTopMargin(0.05)
         # kBlack == 1, kRed == 632, kBlue == 600, kGreen == 416, kMagenta == 616
         self.histArray.FindObject('h_mcp0_ch1').SetLineColor(1) # kBlack
         self.histArray.FindObject('h_mcp0_ch3').SetLineColor(600) # kBlue
@@ -985,6 +1005,12 @@ class barClass:
         self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch12_x_vs_amp'), 5, 'Bar 5 Amplitude (Right SiPM)')
         self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch13_x_vs_amp'), 5, 'Bar 5 Amplitude (Left SiPM)')
 
+        self.drawTripleProfile(self.c4, 1)
+        self.drawTripleProfile(self.c4, 2)
+        self.drawTripleProfile(self.c4, 3)
+        self.drawTripleProfile(self.c4, 4)
+        self.drawTripleProfile(self.c4, 5)
+
         self.drawBarSplits(self.c2, 'h_trackIn_b_rightSignalInOtherBars')
         self.drawBarSplits(self.c2, 'h_trackIn_b_leftSignalInOtherBars')
         self.drawBarSplits(self.c2, 'h_trackIn_b_sumSignalInOtherBars')
@@ -1025,7 +1051,7 @@ class barClass:
             self.histArray.FindObject('h_allChannel_ampFit_percentError').SetXTitle("(Fit Amp - Real Amp) / Real Amp")
             self.histArray.FindObject('h_allChannel_ampFit_percentError').SetYTitle("Entries / 1%")
             self.histArray.FindObject('h_allChannel_ampFit_percentError').SetTitle("")
-            f_err = TF1("f_err", "gaus", -10, 20) # gaussian
+            f_err = TF1("f_err", "gaus", -20, 10) # gaussian
             self.histArray.FindObject('h_allChannel_ampFit_percentError').Fit("f_err", "QR") # should be "R" to impose range
             self.histArray.FindObject('h_allChannel_ampFit_percentError').Draw()
             ltxE = TLatex()
@@ -1332,21 +1358,22 @@ class barClass:
                 ltx1.SetTextFont(62)
                 ltx1.SetTextSize(0.025)
                 ltx1.SetNDC()
-
-                ltx1.SetTextColor(c_pol1)
-                ltx1.DrawLatex(.6, .73, 'pol1: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol1.GetChisquare() / ampWalk_pol1.GetNDF()) )
-                if self.vetoOpt == 'doubleAdj':
-                    ltx1.DrawLatex(.40, .8, 'y = {0:0.3f}x + {1:0.3f}'.format(ampWalk_pol1.GetParameter(1), ampWalk_pol1.GetParameter(0)) )
-                ltx1.SetTextColor(c_pol2)
-                ltx1.DrawLatex(.6, .70, 'pol2: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol2.GetChisquare() / ampWalk_pol2.GetNDF()) )
-                if self.vetoOpt == 'singleAdj':
-                    ltx1.DrawLatex(.40, .8, 'y = {0:0.6f}x^{{2}} + {1:0.3f}x + {2:0.1f}'.format(ampWalk_pol2.GetParameter(2), ampWalk_pol2.GetParameter(1), ampWalk_pol2.GetParameter(0)) )
-                ltx1.SetTextColor(c_pol3)
-                ltx1.DrawLatex(.6, .67, 'pol3: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol3.GetChisquare() / ampWalk_pol3.GetNDF()) )
-                ltx1.SetTextColor(c_pol4)
-                ltx1.DrawLatex(.6, .64, 'pol4: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol4.GetChisquare() / ampWalk_pol4.GetNDF()) )
-                ltx1.SetTextColor(c_pol5)
-                ltx1.DrawLatex(.6, .61, 'pol5: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol5.GetChisquare() / ampWalk_pol5.GetNDF()) )
+                
+                if self.runType == "all5exposure":
+                    ltx1.SetTextColor(c_pol1)
+                    ltx1.DrawLatex(.6, .73, 'pol1: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol1.GetChisquare() / ampWalk_pol1.GetNDF()) )
+                    if self.vetoOpt == 'doubleAdj':
+                        ltx1.DrawLatex(.40, .8, 'y = {0:0.3f}x + {1:0.3f}'.format(ampWalk_pol1.GetParameter(1), ampWalk_pol1.GetParameter(0)) )
+                    ltx1.SetTextColor(c_pol2)
+                    ltx1.DrawLatex(.6, .70, 'pol2: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol2.GetChisquare() / ampWalk_pol2.GetNDF()) )
+                    if self.vetoOpt == 'singleAdj':
+                        ltx1.DrawLatex(.40, .8, 'y = {0:0.6f}x^{{2}} + {1:0.3f}x + {2:0.1f}'.format(ampWalk_pol2.GetParameter(2), ampWalk_pol2.GetParameter(1), ampWalk_pol2.GetParameter(0)) )
+                    ltx1.SetTextColor(c_pol3)
+                    ltx1.DrawLatex(.6, .67, 'pol3: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol3.GetChisquare() / ampWalk_pol3.GetNDF()) )
+                    ltx1.SetTextColor(c_pol4)
+                    ltx1.DrawLatex(.6, .64, 'pol4: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol4.GetChisquare() / ampWalk_pol4.GetNDF()) )
+                    ltx1.SetTextColor(c_pol5)
+                    ltx1.DrawLatex(.6, .61, 'pol5: #chi^{{2}}/NDF = {0:0.2f}'.format(ampWalk_pol5.GetChisquare() / ampWalk_pol5.GetNDF()) )
                 
                 #print 'y = {0:0.2f}*x + {1:0.2f}'.format(ampWalk.GetParameter(1), ampWalk.GetParameter(0))
                 #h_p.Print("all")
@@ -1355,6 +1382,51 @@ class barClass:
             filename = '{0}/{1}_{2}.png'.format(self.topDir, varName.replace(' ', '_').replace('(','').replace(')',''), opt)
             h_p.Draw()
 
+
+        c0.Print(filename)
+
+    # =============================
+
+    def drawTripleProfile(self, c0, barNum, opt='x'):
+        """ function to recieve canvas (c0), TProfile (h_p), and bar number"""
+        c0.cd()
+        c0.SetLeftMargin(0.15);
+        c0.SetRightMargin(0.05);
+        c0.SetBottomMargin(0.10);
+        c0.SetTopMargin(0.10);
+        
+        rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel = self.returnChannelNumbers(barNum)
+
+        pR = self.histArray.FindObject('h_ch{0}_diffRL_vs_time'.format(rightSiPMchannel))
+        pL = self.histArray.FindObject('h_ch{0}_diffRL_vs_time'.format(leftSiPMchannel))
+        pAvg = self.histArray.FindObject('h_ch{0}_ch{1}_over2_diffRL_vs_time'.format(rightSiPMchannel, leftSiPMchannel))
+
+        
+        ytitle = '{0} [ns]'.format("#Delta t")
+        filename = '{0}/bar{1}_tripleProfile_timing_vs_x.png'.format(self.topDir, barNum)
+        pR.SetXTitle("t_{R} - t_{L} [ns]")
+        pR.SetYTitle(ytitle)
+        pR.SetTitle("Bar {0}".format(barNum))
+
+        pAvg.SetLineColor(1) # kBlack
+        pR.SetLineColor(600) # kBlue
+        pL.SetLineColor(632) # kRed
+
+        pAvg.SetLineWidth(3)
+        pR.SetLineWidth(3)
+        pL.SetLineWidth(3)
+
+        pR.SetMinimum(37)
+        pR.SetMaximum(41)
+        pR.Draw()
+        pL.Draw('same')
+        pAvg.Draw('same')
+
+        leg = TLegend(0.38, 0.68, .53, .88);
+        leg.AddEntry(pR, "t_{R}", "l");
+        leg.AddEntry(pL, "t_{L}", "l");
+        leg.AddEntry(pAvg, "t_{R}+t_{L}/2", "l");
+        leg.Draw("same")
 
         c0.Print(filename)
 
