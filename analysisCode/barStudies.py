@@ -45,7 +45,7 @@ if(args.noTiming is None):
 else:
     args.noTiming = True
 
-topDir = '05-14-18_plots_{0}'.format(args.vetoOpt)
+topDir = '05-15-18_plots_{0}'.format(args.vetoOpt)
 
 
 # Ben Local
@@ -63,7 +63,7 @@ t1 = f1.pulse
 #t2 = f2.pulse
 
 
-#barClass(t0, 'all5exposure', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
-barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
+barClass(t0, 'all5exposure', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
+#barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
 #barClass(t2, 'topBars_66V', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
 

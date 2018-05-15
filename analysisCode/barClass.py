@@ -450,7 +450,11 @@ class barClass:
                     rightSiPMchannel_track, leftSiPMchannel_track, mcpChannel_track, timeChannel_track = self.returnChannelNumbers(trackBar)
                     if event.i_evt % 10 == 0:
                         self.drawFourChannelTrace(event.time, event.channel, rightSiPMchannel, leftSiPMchannel, timeChannel, rightSiPMchannel_track, leftSiPMchannel_track, timeChannel_track, event.i_evt) #MIXME --> uncomment for leakage studies
-
+                        # if signal and track bar separated by one bar, look at intermediate bar too
+                        if abs(trackBar - barNum) == 2:
+                            rightSiPMchannel_mid, leftSiPMchannel_mid, mcpChannel_mid, timeChannel_mid = self.returnChannelNumbers( min(trackBar,barNum)+1 )
+                            self.drawSixChannelTrace(event.time, event.channel, rightSiPMchannel, leftSiPMchannel, timeChannel, rightSiPMchannel_track, leftSiPMchannel_track, timeChannel_track, rightSiPMchannel_mid, leftSiPMchannel_mid, timeChannel_mid, event.i_evt) #MIXME --> uncomment for leakage studies
+                            
             # *** 2. Timing stuff
             # ** A. Break if no timing analysis requested
             if not self.doTiming:
@@ -1587,7 +1591,42 @@ class barClass:
         g2.Draw("same")
         gA.Draw("same")
         gB.Draw("same")
-        c0.Print( "{0}/trackOutWaveforms/waveformTrackOut_sig_ch{1}_ch{2}_track_ch{3}_ch{4}_Evt{5}.png".format(self.topDir, ch1, ch2, chA, chB, i_evt) )
+        c0.Print( "{0}/trackOutWaveforms/waveformTrackOut_4channel_sig_ch{1}_ch{2}_track_ch{3}_ch{4}_Evt{5}.png".format(self.topDir, ch1, ch2, chA, chB, i_evt) )
+
+    # =============================
+
+    def drawSixChannelTrace(self, time, channel, ch1, ch2, chTime, chA, chB, chTime2, chI, chII, chTime3, i_evt):
+        """ function to draw 2-channel traces --> probably just for leakage studies"""
+
+        c0 = TCanvas("c0", "c0", 800, 800)
+        c0.cd()
+        c0.SetLeftMargin(0.15);
+        c0.SetRightMargin(0.05);
+        c0.SetBottomMargin(0.10);
+        c0.SetTopMargin(0.05);
+        
+        g1  = self.returnWaveformGraph(time, channel, chTime, ch1)
+        g2  = self.returnWaveformGraph(time, channel, chTime, ch2)
+        gA  = self.returnWaveformGraph(time, channel, chTime2, chA)
+        gB  = self.returnWaveformGraph(time, channel, chTime2, chB)
+        gI  = self.returnWaveformGraph(time, channel, chTime3, chI)
+        gII = self.returnWaveformGraph(time, channel, chTime3, chII)
+        g1.SetLineColor(1) #kBlack
+        g2.SetLineColor(416+2) #kGreen+2
+        gA.SetLineColor(600) #kBlue
+        gB.SetLineColor(632) #kRed
+        gI.SetLineColor(616-3) #kMagenta-3
+        gII.SetLineColor(432-3) #kCyan-3
+        #legendCol = [1, 600, 632, 416+2, 616-3, 800+7, 432-3, 900-3] # kBlack, kBlue, kRed, kGreen+2, kMagenta-3, kOrange+7, kCyan-3, kPink-3
+
+        c0.cd()
+        g1.Draw()
+        g2.Draw("same")
+        gA.Draw("same")
+        gB.Draw("same")
+        gI.Draw("same")
+        gII.Draw("same")
+        c0.Print( "{0}/trackOutWaveforms/waveformTrackOut_6channel_sig_ch{1}_ch{2}_track_ch{3}_ch{4}_middle_ch{5}_ch{6}_Evt{7}.png".format(self.topDir, ch1, ch2, chA, chB, chI, chII, i_evt) )
 
     # =============================
 
