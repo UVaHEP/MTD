@@ -215,11 +215,15 @@ class barClass:
             h_b_right = TH1D('h_trackIn_b{0}_rightSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_rightSignalInOtherBars'.format(barNum), 25, 0, 100)
             h_b_sum = TH1D('h_trackIn_b{0}_sumSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_sumSignalInOtherBars'.format(barNum), 50, 0, 200)
             h_b_diff = TH1D('h_trackIn_b{0}_diffSignalInOtherBars'.format(barNum), 'h_trackIn_b{0}_diffSignalInOtherBars'.format(barNum), 50, -100, 100)
+            h_b_chi2 = TH1D('h_trackIn_b{0}_chi2'.format(barNum), 'h_trackIn_b{0}_chi2'.format(barNum), 50, 0, 50)
 
             h_b_left_out = TH1D('h_trackOut_b{0}_leftSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_leftSignalInOtherBars'.format(barNum), 25, 0, 100)
             h_b_right_out = TH1D('h_trackOut_b{0}_rightSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_rightSignalInOtherBars'.format(barNum), 25, 0, 100)
             h_b_sum_out = TH1D('h_trackOut_b{0}_sumSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_sumSignalInOtherBars'.format(barNum), 50, 0, 200)
             h_b_diff_out = TH1D('h_trackOut_b{0}_diffSignalInOtherBars'.format(barNum), 'h_trackOut_b{0}_diffSignalInOtherBars'.format(barNum), 50, -100, 100)
+            h_b_chi2_out = TH1D('h_trackOut_b{0}_chi2'.format(barNum), 'h_trackOut_b{0}_chi2'.format(barNum), 50, 0, 50)
+
+
 
             arr.AddLast(h_b)
             arr.AddLast(h_b_t)
@@ -230,10 +234,12 @@ class barClass:
             arr.AddLast(h_b_right)
             arr.AddLast(h_b_sum)
             arr.AddLast(h_b_diff)
+            arr.AddLast(h_b_chi2)
             arr.AddLast(h_b_left_out)
             arr.AddLast(h_b_right_out)
             arr.AddLast(h_b_sum_out)
             arr.AddLast(h_b_diff_out)
+            arr.AddLast(h_b_chi2_out)
 
         return arr
 
@@ -305,7 +311,7 @@ class barClass:
             return False
 
         # quick veto if >1 track
-        if event.ntracks > 1:
+        if event.ntracks != 1 or event.chi2 > 10:
             return True
         
         # now go through complete logic
@@ -1023,6 +1029,8 @@ class barClass:
         self.drawBarSplits(self.c2, 'h_trackOut_b_leftSignalInOtherBars')
         self.drawBarSplits(self.c2, 'h_trackOut_b_sumSignalInOtherBars')
         self.drawBarSplits(self.c2, 'h_trackOut_b_diffSignalInOtherBars')
+        self.drawBarSplits(self.c2, 'h_trackIn_b_chi2')
+        self.drawBarSplits(self.c2, 'h_trackOut_b_chi2')
 
         if self.doTiming:
             self.drawSingleProfile(self.c4, self.histArray.FindObject('h_ch1_x_vs_time'), 1, 'Bar 1 Time (Right SiPM)')
@@ -1196,7 +1204,7 @@ class barClass:
         else:
             print "no entries"
 
-        c0.Print( "{0}/bar{1}_python{2}.png".format(self.topDir, barNum, test) )
+        c0.Print( "{0}/bar{1}_heatMap_{2}.png".format(self.topDir, barNum, test) )
 
     # =============================
 
@@ -1641,6 +1649,7 @@ class barClass:
             arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[2])
             arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[1] + event.amp[2])
             arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[1] - event.amp[2])
+            arr.FindObject('h_{0}_b{1}_chi2'.format(trackIn, barNum)).Fill(event.chi2)
             #if event.i_evt % 500 == 0:
             #self.drawTwoChannelTrace(event.time, event.channel, 1, 2, 0, event.i_evt)
         if barNum != 2:
@@ -1648,6 +1657,7 @@ class barClass:
             arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[4])
             arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[3] + event.amp[4])
             arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[3] - event.amp[4])
+            arr.FindObject('h_{0}_b{1}_chi2'.format(trackIn, barNum)).Fill(event.chi2)
             #if event.i_evt % 500 == 0:
             #self.drawTwoChannelTrace(event.time, event.channel, 3, 4, 0, event.i_evt)
         if barNum != 3:
@@ -1655,6 +1665,7 @@ class barClass:
             arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[6])
             arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[5] + event.amp[6])
             arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[5] - event.amp[6])
+            arr.FindObject('h_{0}_b{1}_chi2'.format(trackIn, barNum)).Fill(event.chi2)
             #if event.i_evt % 500 == 0:
             #self.drawTwoChannelTrace(event.time, event.channel, 5, 6, 0, event.i_evt)
         if barNum != 4:
@@ -1662,6 +1673,7 @@ class barClass:
             arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[11])
             arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[10] + event.amp[11])
             arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[10] - event.amp[11])
+            arr.FindObject('h_{0}_b{1}_chi2'.format(trackIn, barNum)).Fill(event.chi2)
             #if event.i_evt % 500 == 0:
             #self.drawTwoChannelTrace(event.time, event.channel, 10, 11, 1, event.i_evt)
         if barNum != 5:
@@ -1669,6 +1681,7 @@ class barClass:
             arr.FindObject('h_{0}_b{1}_leftSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[13])
             arr.FindObject('h_{0}_b{1}_sumSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[12] + event.amp[13])
             arr.FindObject('h_{0}_b{1}_diffSignalInOtherBars'.format(trackIn, barNum)).Fill(event.amp[12] - event.amp[13])
+            arr.FindObject('h_{0}_b{1}_chi2'.format(trackIn, barNum)).Fill(event.chi2)
             #if event.i_evt % 500 == 0:
             #self.drawTwoChannelTrace(event.time, event.channel, 12, 13, 1, event.i_evt)
 
