@@ -301,6 +301,12 @@ class barClass:
             self.xBoundaries = [17, 19, 21, 23, 25]
             self.yBoundaries = [25, 25, 2.5, 7.5, 11.5] # 6-9, 1-4 (bins) 10-13
             self.yIntegralOffset = 1.5
+        elif runType == "may2018TB":
+            self.signalThreshold = 890 # should be 800 (using 100 for CERN testbeam comparison)
+            self.vetoThreshold   = 150
+            self.xBoundaries = [-2, 6, 15, 24, 33]
+            self.yBoundaries = [7.5, 12.5, 16.5, 20.5, 24.5]
+            self.yIntegralOffset = 2.5
 
     # =============================
     
@@ -368,7 +374,30 @@ class barClass:
 
     
     
-    # =============================
+    # ======    May 2018 TB    ======
+    
+    def returnChannelNumbers(self, barNum):
+        """ single function to return mcp channel, time channel, and right/left SiPM channels for a given bar"""
+        leftSiPMchannel  = -1
+        rightSiPMchannel = -1
+        mcpChannel       = -1
+        timeChannel      = -1
+
+        if barNum == 1 or barNum == 2 or barNum == 3:
+            rightSiPMchannel = 18 + 2*barNum - 1
+            leftSiPMchannel  = 18 + 2*barNum
+            mcpChannel  = 18
+            timeChannel = 0
+                            
+        elif barNum == 4 or barNum == 5:
+            rightSiPMchannel = 20 + 2*barNum 
+            leftSiPMchannel  = 20 + 2*barNum + 1
+            mcpChannel = 27
+            timeChannel = 1
+
+        return rightSiPMchannel, leftSiPMchannel, mcpChannel, timeChannel
+
+    # ======    March 2018 TB    ======
     
     def returnChannelNumbers(self, barNum):
         """ single function to return mcp channel, time channel, and right/left SiPM channels for a given bar"""
@@ -431,7 +460,10 @@ class barClass:
         # logic to see if event should be vetoed based on signals in other bars
         doVetoEvent = self.returnVetoDecision(event, barNum, self.vetoOpt) # vetoOpt = none, singleAdj, doubleAdj, allAdj, all
 
-        if (event.amp[rightSiPMchannel] > self.signalThreshold and event.amp[leftSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004) and event.ntracks == 1:
+        # =====   pre 08-04-18, asks for signals > signal threshold    =====
+        #if (event.amp[rightSiPMchannel] > self.signalThreshold and event.amp[leftSiPMchannel] > self.signalThreshold and not doVetoEvent and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004) and event.ntracks == 1:
+        # =====   08-04-18, asks for signals above vetoThreshold and beneath signal threshold --> remove saturated pulses   =====
+        if ( ( (event.amp[rightSiPMchannel] > self.vetoThreshold and event.amp[rightSiPMchannel] < self.signalThreshold and event.amp[leftSiPMchannel] > self.vetoThreshold and event.amp[leftSiPMchannel] < self.signalThreshold) and not doVetoEvent) and abs(event.xSlope) < 0.0004 and abs(event.ySlope) < 0.0004) and event.ntracks == 1:
             # leakage histograms and profiles
             arr.FindObject('h_b{0}'.format(barNum)).Fill(event.x_dut[2], event.y_dut[2])
             arr.FindObject('h_mcp{0}_ch{1}'.format(timeChannel, rightSiPMchannel)).Fill( event.amp[mcpChannel] )
@@ -469,10 +501,11 @@ class barClass:
             # ** B. Calculate times
             #mipTime_R, fitSlope_R, mipTime_R_ampWalkCorrected = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
             #mipTime_L, fitSlope_L, mipTime_L_ampWalkCorrected = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
+            
+            # ====   March TB   =====
             fitStartTime_R, fitStartVoltage_R, fitSlope_R, ampFitPercentErr_R, mipTime_fracFit_R = self.getTimingForChannel(event.time, event.channel, timeChannel, rightSiPMchannel, event.i_evt)
             fitStartTime_L, fitStartVoltage_L, fitSlope_L, ampFitPercentErr_L, mipTime_fracFit_L = self.getTimingForChannel(event.time, event.channel, timeChannel, leftSiPMchannel, event.i_evt)
             mipTime_MCP = event.t_peak[mcpChannel]
-
             if fitSlope_R == 0:
                 mipTime_R = 0
             else:
@@ -482,6 +515,12 @@ class barClass:
                 mipTime_L = 0
             else:
                 mipTime_L = fitStartTime_L + (self.fitVoltageForTiming - fitStartVoltage_L)/fitSlope_L
+
+            # ====    May TB    =====
+            mipTime_MCP = event.gaus_mean[mcpChannel]
+            mipTime_L   = event.LP1_5[leftSiPMchannel]
+            mipTime_R   = event.LP1_5[rightSiPMchannel]
+
 
             if mipTime_R != 0 and mipTime_L != 0:
                 arr.FindObject('h_ch{0}_x_vs_time'.format(rightSiPMchannel)).Fill(event.x_dut[2], mipTime_R)
@@ -924,7 +963,7 @@ class barClass:
         nTotal=0
 
         for event in self.tree:        
-            if nTotal > 50000 and self.isTest:
+            if nTotal > 10000 and self.isTest:
                 break
 
             nTotal += 1
@@ -1083,7 +1122,7 @@ class barClass:
             
             self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_x_vs_timingRes'), 0, 't_{right SiPM} - t_{left SiPM}')
             self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_x_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}')
-            self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}', opt='slope')
+            #self.drawSingleProfile(self.c4, self.histArray.FindObject('h_allChannel_fitSlope_vs_mcpRef_timingRes'), 0, '(t_{right SiPM} + t_{left SiPM})/2 - t_{MCP}', opt='slope')
             
             self.c4.cd()
             self.histArray.FindObject('h_allChannel_timingLogic').Draw("TEXT")

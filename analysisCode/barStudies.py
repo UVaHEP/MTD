@@ -45,25 +45,29 @@ if(args.noTiming is None):
 else:
     args.noTiming = True
 
-topDir = '05-23-18_plots_{0}'.format(args.vetoOpt)
+topDir = '09-04-18_plots_{0}'.format(args.vetoOpt)
 
 
 # Ben Local
-f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/all5exposure/DataCMSVMETiming_5barExposure.root', 'READ') # all 5
-f1 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/lowBias/bottombars_66V.root', 'READ') # low bias (66 V) bars 1 and 2
+#f0 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/all5exposure/DataCMSVMETiming_5barExposure.root', 'READ') # all 5
+#f1 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/lowBias/bottombars_66V.root', 'READ') # low bias (66 V) bars 1 and 2
 #f2 = TFile('/home/btannenw/Desktop/MTD/testbeam_FNAL_03-2018/lowBias/topbars_66V.root', 'READ') # low bias (66 V) bars 3, 4, and 5
 
-# LPC
+# LPC, March 2018 TB data
 #f0 = TFile('/eos/uscms/store/user/mjoyce/BTL/FNAL_TB_Mar2018/combined/Run902_to_953.root', 'READ') # all 5
 #f1 = TFile('/eos/uscms/store/user/mjoyce/BTL/FNAL_TB_Mar2018/combined/bottombars_66V.root', 'READ') # low bias (66 V) bars 1 and 2
 #f2 = TFile('/eos/uscms/store/user/mjoyce/BTL/FNAL_TB_Mar2018/combined/topbars_66V.root', 'READ') # low bias (66 V) bars 3, 4, and 5
+
+# LPC, May 2018 TB data
+f0 = TFile('/eos/uscms/store/user/barria/TB_Fnal_June2018_data/XYScan_Bias69V/Run1111-1132_Bias69_X-8500_Y-10400.root', 'READ')
+f1 = TFile('/eos/uscms/store/user/barria/TB_Fnal_June2018_data/XYScan_Bias68V/Run1217-1230_Bias68_X-8500_Y-10400.root', 'READ')
 
 t0 = f0.pulse
 t1 = f1.pulse
 #t2 = f2.pulse
 
 
-barClass(t0, 'all5exposure', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
+barClass(t0, 'may2018TB', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
 #barClass(t1, 'bottomBars_66V', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
 #barClass(t2, 'topBars_66V', topDir, args.vetoOpt, args.noTiming, args.test, args.batch)
 
